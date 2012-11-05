@@ -57,6 +57,7 @@ int init_requestor(bt_requestor_t * req, char * chunkfile, char * outputfile){
     }
 
     printf("init done\n");
+    strcpy(req->outputfile, outputfile);
     req->left = chunk_cnt;
     req->in_progress = 1;
     memset(req->downloading, -1, sizeof(req->downloading));
@@ -75,6 +76,8 @@ int find_next(int * a, int n, int * b){
 
 int send_get(bt_requestor_t * req, int provider, int chunk_id){
     req->downloading[provider] = chunk_id;
+    req->chunks[chunk_id].cur_provider = provider;
+
     data_packet_t packet;
     packet.header.magicnum = 15441;
     packet.header.version = 1;
@@ -147,18 +150,34 @@ int finish_file(bt_requestor_t * req){
 }
 
 int finish_chunk(bt_requestor_t * req, int chunk_id){
-    FILE * fout = fopen(req->outputfile, "w");
-    fseek(fout, chunk_id * BT_CHUNK_SIZE, SEEK_SET);
+    printf("Chunk %d Finished!\n", chunk_id);
+    FILE * fout = fopen(req->outputfile, "a+");
+    if(chunk_id)
+        fseek(fout, chunk_id * BT_CHUNK_SIZE, SEEK_SET);
     fwrite(req->chunks[chunk_id].data_buf, BT_CHUNK_SIZE, 1, fout);
     fclose(fout);
     if(--req->left == 0){
         finish_file(req);
+    }else{
+        int provider = req->chunks[chunk_id].cur_provider;
+        req->downloading[provider] = -1;
+        int i;
+        for(i=0; i<req->chunk_cnt; ++i){
+            if(req->chunks[i].cur_provider == -1){
+                int new_provider = find_next(req->chunks[i].providers, req->chunks[i].provider_cnt, req->downloading);
+                if(new_provider != -1){
+                    send_get(req, new_provider, i);
+                }else{
+                    printf("chunk %d have no provider\n", i);
+                }
+            }
+        }
     }
     return 0;
 }
 
 int update_data(bt_requestor_t * req, int peer_id, data_packet_t * packet){
-    printf("Got Data! %d\n", packet->header.seq_num);
+    // printf("Got Data! %d\n", packet->header.seq_num);
     int chunk_id = req->downloading[peer_id];
     if(chunk_id == -1)
         return 0;

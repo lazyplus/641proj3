@@ -44,7 +44,7 @@ int send_packet(int peer, data_packet_t * packet){
   bt_peer_t * pinfo = bt_peer_info(&config, peer);
   if(pinfo == NULL)
     return -1;
-  printf("Send!\n");
+  // printf("Send!\n");
   spiffy_sendto(config.sock_fd, buf, packet->header.packet_len, 0, (struct sockaddr *) &pinfo->addr, sizeof(pinfo->addr));
   return 0;
 }
@@ -86,18 +86,18 @@ void process_inbound_udp(int sock) {
   static char buf[BUFLEN];
   fromlen = sizeof(from);
   int ret = spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *) &from, &fromlen);
-  printf("Got %d %d\n", ret, sizeof(header_t));
+  // printf("Got %d %d\n", ret, sizeof(header_t));
   buf[ret] = 0;
   data_packet_t packet = * (data_packet_t *) buf;
   packet.data = buf + sizeof(header_t);
-  printf("Magic %d\n", packet.header.magicnum);
-  printf("type %d\n", packet.header.packet_type);
+  // printf("Magic %d\n", packet.header.magicnum);
+  // printf("type %d\n", packet.header.packet_type);
   // printf("Data %s\n", packet.data);
   // int i;
   // for(i=sizeof(header_t); i<packet->header.packet_len; ++i){
     // printf("%d ", buf[i]);
   // }
-  printf("\n");
+  // printf("\n");
   // printf("Magic %d\n", packet->header.magicnum);
   // printf("Magic %d\n", packet->header.magicnum);
 
@@ -198,7 +198,7 @@ void peer_run() {
     nfds = select(sock+1, &readfds, NULL, NULL, &time_out);
     
     if (nfds > 0) {
-      printf("%d\n", nfds);
+      // printf("%d\n", nfds);
       if (FD_ISSET(sock, &readfds)) {
         process_inbound_udp(sock);
       }
@@ -211,6 +211,6 @@ void peer_run() {
         }
       }
     }
-    printf("running\n");
+    // printf("running\n");
   }
 }

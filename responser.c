@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <time.h>
 #include "responser.h"
 
 int init_responser(bt_responser_t * res, char * has_chunk_file, char * chunk_file){
@@ -68,6 +70,7 @@ int send_chunk(bt_responser_t * res, int peer_id, int chunk_id){
     static char buf[BT_PACKET_DATA_SIZE];
     FILE * fin = fopen(res->chunk_file, "r");
     printf("Reading chunk file %s\n", res->chunk_file);
+    fseek(fin, chunk_id * BT_CHUNK_SIZE, SEEK_SET);
     int i;
     for(i=0; i<BT_CHUNK_SIZE; i+=BT_PACKET_DATA_SIZE){
         fread(buf, BT_PACKET_DATA_SIZE, 1, fin);
@@ -82,6 +85,10 @@ int send_chunk(bt_responser_t * res, int peer_id, int chunk_id){
         packet->data = malloc(BT_PACKET_DATA_SIZE);
         memcpy(packet->data, buf, BT_PACKET_DATA_SIZE);
         send_packet_cc(peer_id, packet);
+        struct timespec wait_time;
+        wait_time.tv_sec = 0;
+        wait_time.tv_nsec = 1000000;
+        nanosleep(&wait_time, NULL);
     }
     return 0;
 }
