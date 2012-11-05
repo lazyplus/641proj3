@@ -34,6 +34,8 @@ struct bt_config_s {
   short identity;
   unsigned short myport;
 
+  int sock_fd;
+
   int argc; 
   char **argv;
 

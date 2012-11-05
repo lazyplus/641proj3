@@ -20,8 +20,28 @@
 #include "spiffy.h"
 #include "bt_parse.h"
 #include "input_buffer.h"
+#include "requestor.h"
 
 bt_config_t config;
+bt_requestor_t requestor;
+
+int send_packet(int peer, data_packet_t * packet){
+  #define BUFLEN 1500
+  static char buf[BUFLEN];
+
+  printf("Sending packet to %d\n", peer);
+  memcpy(buf + sizeof(header_t), packet->data, sizeof(char) * packet->header.packet_len);
+  packet->header.packet_len += sizeof(header_t);
+  memcpy(buf, (const char *)&packet->header, sizeof(header_t));
+
+  bt_peer_t * pinfo = bt_peer_info(&config, peer);
+  if(pinfo == NULL)
+    return -1;
+  printf("Send!\n");
+  spiffy_sendto(config.sock_fd, buf, packet->header.packet_len, 0, (struct sockaddr *) &pinfo->addr, sizeof(pinfo->addr));
+  return 0;
+}
+
 void peer_run();
 
 int main(int argc, char **argv) {
@@ -37,11 +57,11 @@ int main(int argc, char **argv) {
 
   bt_parse_command_line(&config);
 
-#ifdef DEBUG
-  if (debug & DEBUG_INIT) {
+// #ifdef DEBUG
+  // if (debug & DEBUG_INIT) {
     bt_dump_config(&config);
-  }
-#endif
+  // }
+// #endif
   
   peer_run(&config);
   return 0;
@@ -53,7 +73,7 @@ void process_inbound_udp(int sock) {
   struct sockaddr_in from;
   socklen_t fromlen;
   char buf[BUFLEN];
-
+  printf("PROCESS_INBOUND_UDP SKELETON -- replace!\n");
   fromlen = sizeof(from);
   spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *) &from, &fromlen);
 
@@ -65,8 +85,12 @@ void process_inbound_udp(int sock) {
 }
 
 void process_get(char *chunkfile, char *outputfile) {
-  printf("PROCESS GET SKELETON CODE CALLED.  Fill me in!  (%s, %s)\n", 
-    chunkfile, outputfile);
+  if (requestor.in_progress) {
+    printf("Waiting for previous downloading, try later\n");
+    return;
+  }
+
+  init_requestor(&requestor, chunkfile, outputfile);
 }
 
 void handle_user_input(char *line, void *cbdata) {
@@ -110,23 +134,31 @@ void peer_run() {
   }
   
   spiffy_init(config.identity, (struct sockaddr *)&myaddr, sizeof(myaddr));
+  struct timeval time_out;
 
   while (1) {
     int nfds;
+    FD_ZERO(&readfds);
     FD_SET(STDIN_FILENO, &readfds);
     FD_SET(sock, &readfds);
+    time_out.tv_sec = 1;
+    time_out.tv_usec = 0;
     
-    nfds = select(sock+1, &readfds, NULL, NULL, NULL);
+    nfds = select(sock+1, &readfds, NULL, NULL, &time_out);
     
     if (nfds > 0) {
+      printf("%d\n", nfds);
       if (FD_ISSET(sock, &readfds)) {
         process_inbound_udp(sock);
+        printf("!!!!\n");
       }
       
       if (FD_ISSET(STDIN_FILENO, &readfds)) {
         process_user_input(STDIN_FILENO, userbuf, handle_user_input,
           "Currently unused");
+        printf("......\n");
       }
     }
+    printf("running\n");
   }
 }

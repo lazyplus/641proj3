@@ -43,6 +43,10 @@ void process_user_input(int fd, struct user_iobuf *userbuf,
     userbuf->cur += nread;
   }
 
+  if(nread == 0){
+    printf("CCCCC\n");
+  }
+
  while ((ret = strchr(userbuf->buf, '\n')) != NULL) {
   *ret = '\0';
   handle_line(userbuf->buf, cbdata);
