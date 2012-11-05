@@ -21,18 +21,25 @@
 #include "bt_parse.h"
 #include "input_buffer.h"
 #include "requestor.h"
+#include "responser.h"
 
 bt_config_t config;
 bt_requestor_t requestor;
+bt_responser_t responser;
 
 int send_packet(int peer, data_packet_t * packet){
   #define BUFLEN 1500
   static char buf[BUFLEN];
 
-  printf("Sending packet to %d\n", peer);
-  memcpy(buf + sizeof(header_t), packet->data, sizeof(char) * packet->header.packet_len);
+  // printf("Sending packet to %d\n", peer);
+  // printf("Sending %d %s\n", packet->header.packet_len, packet->data);
+  memcpy(buf + sizeof(header_t), packet->data, packet->header.packet_len);
   packet->header.packet_len += sizeof(header_t);
   memcpy(buf, (const char *)&packet->header, sizeof(header_t));
+  // int i;
+  // for(i=0; i<packet->header.packet_len; ++i){
+  //   printf("%d ", buf[i]);
+  // }
 
   bt_peer_t * pinfo = bt_peer_info(&config, peer);
   if(pinfo == NULL)
@@ -40,6 +47,10 @@ int send_packet(int peer, data_packet_t * packet){
   printf("Send!\n");
   spiffy_sendto(config.sock_fd, buf, packet->header.packet_len, 0, (struct sockaddr *) &pinfo->addr, sizeof(pinfo->addr));
   return 0;
+}
+
+int send_packet_cc(int peer, data_packet_t * packet){
+  return send_packet(peer, packet);
 }
 
 void peer_run();
@@ -72,16 +83,52 @@ void process_inbound_udp(int sock) {
   #define BUFLEN 1500
   struct sockaddr_in from;
   socklen_t fromlen;
-  char buf[BUFLEN];
-  printf("PROCESS_INBOUND_UDP SKELETON -- replace!\n");
+  static char buf[BUFLEN];
   fromlen = sizeof(from);
-  spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *) &from, &fromlen);
+  int ret = spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *) &from, &fromlen);
+  printf("Got %d %d\n", ret, sizeof(header_t));
+  buf[ret] = 0;
+  data_packet_t packet = * (data_packet_t *) buf;
+  packet.data = buf + sizeof(header_t);
+  printf("Magic %d\n", packet.header.magicnum);
+  printf("type %d\n", packet.header.packet_type);
+  // printf("Data %s\n", packet.data);
+  // int i;
+  // for(i=sizeof(header_t); i<packet->header.packet_len; ++i){
+    // printf("%d ", buf[i]);
+  // }
+  printf("\n");
+  // printf("Magic %d\n", packet->header.magicnum);
+  // printf("Magic %d\n", packet->header.magicnum);
 
-  printf("PROCESS_INBOUND_UDP SKELETON -- replace!\n"
-     "Incoming message from %s:%d\n%s\n\n", 
-     inet_ntoa(from.sin_addr),
-     ntohs(from.sin_port),
-     buf);
+  bt_peer_t *p;
+  for (p = config.peers; p != NULL; p = p->next) {
+    char * host1, * host2;
+    host1 = strdup(inet_ntoa(p->addr.sin_addr));
+    host2 = strdup(inet_ntoa(from.sin_addr));
+    if (strcmp(host1, host2) == 0 && p->addr.sin_port == from.sin_port) {
+      free(host1);
+      free(host2);
+      break;
+    }
+    free(host1);
+    free(host2);
+  }
+
+  if(p == NULL){
+    printf("No such peer\n");
+    return;
+  }
+  
+  int peer_id = p->id;
+
+  if(packet.header.packet_type == 1 || packet.header.packet_type == 3 || packet.header.packet_type == 5){
+    requestor_packet(&requestor, peer_id, &packet);
+  }else if(packet.header.packet_type == 0 || packet.header.packet_type == 2){
+    responser_packet(&responser, peer_id, &packet);
+  }else{
+    //sender
+  }
 }
 
 void process_get(char *chunkfile, char *outputfile) {
@@ -135,11 +182,15 @@ void peer_run() {
   
   spiffy_init(config.identity, (struct sockaddr *)&myaddr, sizeof(myaddr));
   struct timeval time_out;
+  int stdin_closed = 0;
+  config.sock_fd = sock;
+
+  init_responser(&responser, config.has_chunk_file, config.chunk_file);
 
   while (1) {
     int nfds;
     FD_ZERO(&readfds);
-    FD_SET(STDIN_FILENO, &readfds);
+    if(!stdin_closed) FD_SET(STDIN_FILENO, &readfds);
     FD_SET(sock, &readfds);
     time_out.tv_sec = 1;
     time_out.tv_usec = 0;
@@ -150,13 +201,14 @@ void peer_run() {
       printf("%d\n", nfds);
       if (FD_ISSET(sock, &readfds)) {
         process_inbound_udp(sock);
-        printf("!!!!\n");
       }
       
       if (FD_ISSET(STDIN_FILENO, &readfds)) {
-        process_user_input(STDIN_FILENO, userbuf, handle_user_input,
+        int ret = process_user_input(STDIN_FILENO, userbuf, handle_user_input,
           "Currently unused");
-        printf("......\n");
+        if(ret == -1){
+          stdin_closed = 1;
+        }
       }
     }
     printf("running\n");

@@ -26,5 +26,6 @@ typedef struct data_packet {
 
 
 int send_packet(int peer, data_packet_t * packet);
+int send_packet_cc(int peer, data_packet_t * packet);
 
 #endif

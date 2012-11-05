@@ -19,7 +19,7 @@ struct user_iobuf *create_userbuf() {
   return b;
 }
 
-void process_user_input(int fd, struct user_iobuf *userbuf, 
+int process_user_input(int fd, struct user_iobuf *userbuf, 
 			void (*handle_line)(char *, void *), void *cbdata)
 {
   int nread;
@@ -43,16 +43,17 @@ void process_user_input(int fd, struct user_iobuf *userbuf,
     userbuf->cur += nread;
   }
 
-  if(nread == 0){
-    printf("CCCCC\n");
+  if(nread <= 0){
+    return -1;
   }
 
- while ((ret = strchr(userbuf->buf, '\n')) != NULL) {
-  *ret = '\0';
-  handle_line(userbuf->buf, cbdata);
-  /* Shift the remaining contents of the buffer forward */
-  memmove(userbuf->buf, ret + 1, USERBUF_SIZE - (ret - userbuf->buf));
-  userbuf->cur -= (ret - userbuf->buf + 1);
- }
+  while ((ret = strchr(userbuf->buf, '\n')) != NULL) {
+    *ret = '\0';
+    handle_line(userbuf->buf, cbdata);
+    /* Shift the remaining contents of the buffer forward */
+    memmove(userbuf->buf, ret + 1, USERBUF_SIZE - (ret - userbuf->buf));
+    userbuf->cur -= (ret - userbuf->buf + 1);
+  }
 
+  return 0;
 }
