@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "debug.h"
 #include "spiffy.h"
 #include "bt_parse.h"
@@ -31,26 +32,28 @@ int send_packet(int peer, data_packet_t * packet){
   #define BUFLEN 1500
   static char buf[BUFLEN];
 
-  // printf("Sending packet to %d\n", peer);
-  // printf("Sending %d %s\n", packet->header.packet_len, packet->data);
   memcpy(buf + sizeof(header_t), packet->data, packet->header.packet_len);
   packet->header.packet_len += sizeof(header_t);
   memcpy(buf, (const char *)&packet->header, sizeof(header_t));
-  // int i;
-  // for(i=0; i<packet->header.packet_len; ++i){
-  //   printf("%d ", buf[i]);
-  // }
 
   bt_peer_t * pinfo = bt_peer_info(&config, peer);
   if(pinfo == NULL)
     return -1;
-  // printf("Send!\n");
+
   spiffy_sendto(config.sock_fd, buf, packet->header.packet_len, 0, (struct sockaddr *) &pinfo->addr, sizeof(pinfo->addr));
   return 0;
 }
 
 int send_packet_cc(int peer, data_packet_t * packet){
+  struct timespec wait_time;
+  wait_time.tv_sec = 0;
+  wait_time.tv_nsec = 1000000;
+  nanosleep(&wait_time, NULL);
   return send_packet(peer, packet);
+}
+
+int connection_closed(int peer){
+  responser_connection_closed(&responser, peer);
 }
 
 void peer_run();

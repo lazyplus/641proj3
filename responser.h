@@ -16,12 +16,12 @@ struct responser_s{
     int chunk_cnt;
     chunk_data_t * chunks;
     int uploading_cnt;
-    char uploading[BT_MAX_PEERS];
+    char uploadingto[BT_MAX_PEERS];
 };
 typedef struct responser_s bt_responser_t;
 
 int init_responser(bt_responser_t * res, char * has_chunk_file, char * chunk_file);
 int responser_packet(bt_responser_t * res, int peer_id, data_packet_t * packet);
-int connection_closed(bt_responser_t * res, int peer);
+int responser_connection_closed(bt_responser_t * res, int peer);
 
 #endif

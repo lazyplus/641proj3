@@ -15,6 +15,7 @@ struct chunk_status_s{
     int provider_cnt;
     int providers[BT_MAX_PEERS];
     int cur_provider;
+    int finished;
     char hash[SHA1_HASH_SIZE * 2 + 1];
     int id;
 };

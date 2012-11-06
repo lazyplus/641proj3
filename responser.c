@@ -2,27 +2,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <time.h>
 #include "responser.h"
+#include "bt_parse.h"
+
+extern bt_config_t config;
 
 int init_responser(bt_responser_t * res, char * has_chunk_file, char * chunk_file){
     FILE * fin = fopen(has_chunk_file, "r");
     if(fin == NULL){
-        printf("Fuck %s\n", has_chunk_file);
+        printf("Cannot find chunk file %s\n", has_chunk_file);
         return 0;
     }
 
-    char dummy[20];
-    // fscanf(fin, "%s%s", dummy, res->chunk_file);
-    // fscanf(fin, "%s", dummy);
-
-    // printf("!!!\n");
     int chunk_cnt = 0;
     int chunk_id;
     char chunk_hash[SHA1_HASH_SIZE * 2 + 1];
     while(fscanf(fin, "%d%s", &chunk_id, chunk_hash) == 2){
-        printf("%d %s\n", chunk_id, chunk_hash);
-        printf("......\n");
         ++ chunk_cnt;
     }
     fclose(fin);
@@ -30,8 +25,6 @@ int init_responser(bt_responser_t * res, char * has_chunk_file, char * chunk_fil
     res->chunks = (chunk_data_t *) malloc(sizeof(chunk_data_t) * chunk_cnt);
     res->chunk_cnt = chunk_cnt;
     fin = fopen(has_chunk_file, "r");
-    // fscanf(fin, "%s%s", dummy, res->chunk_file);
-    // fscanf(fin, "%s", dummy);
 
     int i = 0;
     while(fscanf(fin, "%d%s", &res->chunks[i].id, chunk_hash) == 2){
@@ -40,16 +33,21 @@ int init_responser(bt_responser_t * res, char * has_chunk_file, char * chunk_fil
     }
     fclose(fin);
 
+    char dummy[20];
     fin = fopen(chunk_file, "r");
     fscanf(fin, "%s%s", dummy, res->chunk_file);
-    // fscanf(fin, "%s", dummy);
     res->uploading_cnt = 0;
-    memset(res->uploading, 0, sizeof(res->uploading));
-    // strcpy(res->chunk_file, chunk_file);
+    memset(res->uploadingto, 0, sizeof(res->uploadingto));
     return 0;
 }
 
-int connection_closed(bt_responser_t * res, int peer);
+int responser_connection_closed(bt_responser_t * res, int peer){
+    if(res->uploadingto[peer]){
+        res->uploadingto[peer] = 0;
+        -- res->uploading_cnt;
+    }
+    return 0;
+}
 
 int send_ihave(bt_responser_t * res, int peer_id, char * hash){
     printf("Sending I have %s\n", hash);
@@ -67,9 +65,22 @@ int send_ihave(bt_responser_t * res, int peer_id, char * hash){
 
 int send_chunk(bt_responser_t * res, int peer_id, int chunk_id){
     printf("Sending Chunk %d to %d\n", chunk_id, peer_id);
+
+    if(res->uploadingto[peer_id]){
+        printf("Already in progress\n");
+        return -1;
+    }
+
+    if(res->uploading_cnt >= config.max_conn){
+        printf("Too many connections\n");
+        return -1;
+    }
+
+    res->uploadingto[peer_id] = 1;
+    ++ res->uploading_cnt;
+
     static char buf[BT_PACKET_DATA_SIZE];
     FILE * fin = fopen(res->chunk_file, "r");
-    printf("Reading chunk file %s\n", res->chunk_file);
     fseek(fin, chunk_id * BT_CHUNK_SIZE, SEEK_SET);
     int i;
     for(i=0; i<BT_CHUNK_SIZE; i+=BT_PACKET_DATA_SIZE){
@@ -85,11 +96,8 @@ int send_chunk(bt_responser_t * res, int peer_id, int chunk_id){
         packet->data = malloc(BT_PACKET_DATA_SIZE);
         memcpy(packet->data, buf, BT_PACKET_DATA_SIZE);
         send_packet_cc(peer_id, packet);
-        struct timespec wait_time;
-        wait_time.tv_sec = 0;
-        wait_time.tv_nsec = 1000000;
-        nanosleep(&wait_time, NULL);
     }
+    connection_closed(peer_id);
     return 0;
 }
 
