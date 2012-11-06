@@ -5,7 +5,7 @@
 #include "peer.h"
 #include "sha.h"
 
-#define BT_DATA_TIMEOUT 10
+#define BT_DATA_TIMEOUT 5
 
 struct chunk_status_s{
     int last_packet;

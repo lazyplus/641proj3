@@ -23,15 +23,24 @@
 #include "input_buffer.h"
 #include "requestor.h"
 #include "responser.h"
+#include "send.h"
 
 bt_config_t config;
 bt_requestor_t requestor;
 bt_responser_t responser;
+struct bt_sender_s sender;
+
+int free_packet(data_packet_t * packet){
+  free(packet->data);
+  free(packet);
+  return 0;
+}
 
 int send_packet(int peer, data_packet_t * packet){
   #define BUFLEN 1500
   static char buf[BUFLEN];
 
+  // printf("Sending %d %d\n", packet->header.packet_type, packet->header.seq_num);
   memcpy(buf + sizeof(header_t), packet->data, packet->header.packet_len);
   packet->header.packet_len += sizeof(header_t);
   memcpy(buf, (const char *)&packet->header, sizeof(header_t));
@@ -45,15 +54,11 @@ int send_packet(int peer, data_packet_t * packet){
 }
 
 int send_packet_cc(int peer, data_packet_t * packet){
-  struct timespec wait_time;
-  wait_time.tv_sec = 0;
-  wait_time.tv_nsec = 1000000;
-  nanosleep(&wait_time, NULL);
-  return send_packet(peer, packet);
+  return ctl_udp_send(&sender, peer, packet);
 }
 
 int connection_closed(int peer){
-  responser_connection_closed(&responser, peer);
+  return responser_connection_closed(&responser, peer);
 }
 
 void peer_run();
@@ -89,20 +94,14 @@ void process_inbound_udp(int sock) {
   static char buf[BUFLEN];
   fromlen = sizeof(from);
   int ret = spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *) &from, &fromlen);
-  // printf("Got %d %d\n", ret, sizeof(header_t));
   buf[ret] = 0;
   data_packet_t packet = * (data_packet_t *) buf;
   packet.data = buf + sizeof(header_t);
-  // printf("Magic %d\n", packet.header.magicnum);
-  // printf("type %d\n", packet.header.packet_type);
-  // printf("Data %s\n", packet.data);
-  // int i;
-  // for(i=sizeof(header_t); i<packet->header.packet_len; ++i){
-    // printf("%d ", buf[i]);
-  // }
-  // printf("\n");
-  // printf("Magic %d\n", packet->header.magicnum);
-  // printf("Magic %d\n", packet->header.magicnum);
+  // if()printf("Got packet %d\n", packet.header.seq_num);
+  if(packet.header.magicnum != BT_MAGIC){
+    printf("Ignoring unrecognizable packet\n");
+    return;
+  }
 
   bt_peer_t *p;
   for (p = config.peers; p != NULL; p = p->next) {
@@ -130,7 +129,7 @@ void process_inbound_udp(int sock) {
   }else if(packet.header.packet_type == 0 || packet.header.packet_type == 2){
     responser_packet(&responser, peer_id, &packet);
   }else{
-    //sender
+    ctl_udp_ack(&sender, peer_id, &packet);
   }
 }
 
@@ -189,6 +188,7 @@ void peer_run() {
   config.sock_fd = sock;
 
   init_responser(&responser, config.has_chunk_file, config.chunk_file);
+  init_sender(&sender);
 
   while (1) {
     int nfds;
@@ -201,7 +201,6 @@ void peer_run() {
     nfds = select(sock+1, &readfds, NULL, NULL, &time_out);
     
     if (nfds > 0) {
-      // printf("%d\n", nfds);
       if (FD_ISSET(sock, &readfds)) {
         process_inbound_udp(sock);
       }
@@ -213,7 +212,8 @@ void peer_run() {
           stdin_closed = 1;
         }
       }
+    } else {
+      requstor_timeout(&requestor);
     }
-    // printf("running\n");
   }
 }

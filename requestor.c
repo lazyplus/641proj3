@@ -9,7 +9,7 @@ extern bt_config_t config;
 int send_whohas(bt_requestor_t * req, int chunk_id){
     data_packet_t packet;
     bt_peer_t *p;
-    packet.header.magicnum = 15441;
+    packet.header.magicnum = BT_MAGIC;
     packet.header.version = 1;
     packet.header.packet_type = 0;
     packet.header.header_len = sizeof(header_t);
@@ -75,18 +75,24 @@ int find_next(int * a, int n, int * b){
 }
 
 int send_get(bt_requestor_t * req, int provider, int chunk_id){
+    printf("sending GET %d to %d\n", chunk_id, provider);
+    if(req->downloading[provider] != -1){
+        printf("!!!\n");
+        return -1;
+    }
     req->downloading[provider] = chunk_id;
     req->chunks[chunk_id].cur_provider = provider;
+    req->chunks[chunk_id].left = BT_CHUNK_SIZE / BT_PACKET_DATA_SIZE;
+    req->chunks[chunk_id].last_packet = BT_DATA_TIMEOUT;
 
     data_packet_t packet;
-    packet.header.magicnum = 15441;
+    packet.header.magicnum = BT_MAGIC;
     packet.header.version = 1;
     packet.header.packet_type = 2;
     packet.header.header_len = sizeof(header_t);
     packet.header.packet_len = SHA1_HASH_SIZE * 2;
     packet.data = malloc(SHA1_HASH_SIZE * 2 * sizeof(char));
     memcpy(packet.data, req->chunks[chunk_id].hash, SHA1_HASH_SIZE * 2 * sizeof(char));
-    printf("sending GET %d to %d\n", chunk_id, provider);
     send_packet(provider, &packet);
     return 0;
 }
@@ -94,8 +100,11 @@ int send_get(bt_requestor_t * req, int provider, int chunk_id){
 int request_next_chunk(bt_requestor_t * req){
     int i;
     for(i=0; i<req->chunk_cnt; ++i){
+        // printf("Chunk %d %d %d\n", i, req->chunks[i].finished, req->chunks[i].cur_provider);
         if(req->chunks[i].finished == 0 && req->chunks[i].cur_provider == -1){
+            printf("Finding next provider for chunk %d\n", i);
             int new_provider = find_next(req->chunks[i].providers, req->chunks[i].provider_cnt, req->downloading);
+            printf("Get new provider %d\n", new_provider);
             if(new_provider != -1){
                 send_get(req, new_provider, i);
                 return 1;
@@ -119,14 +128,18 @@ int send_ack(bt_requestor_t * req, int peer, data_packet_t * packet){
 int requstor_timeout(bt_requestor_t * req){
     int i;
     for(i=0; i<req->chunk_cnt; ++i){
-        if(req->chunks[i].last_packet > 0 && (--req->chunks[i].last_packet  == 0)){
-            memmove(req->chunks[i].providers + req->chunks[i].cur_provider, 
-                req->chunks[i].providers + req->chunks[i].cur_provider + 1,
-                (req->chunks[i].provider_cnt - req->chunks[i].cur_provider - 1) * sizeof(int));
-            -- req->chunks[i].provider_cnt;
+        if(req->chunks[i].finished == 0 && req->chunks[i].cur_provider != -1 && req->chunks[i].last_packet > 0 && (--req->chunks[i].last_packet  == 0)){
+            printf("Time out on chunk %d from %d\n", i, req->chunks[i].cur_provider);
+            req->downloading[req->chunks[i].cur_provider] = -1;
+            req->chunks[i].cur_provider = -1;
+
+            // memmove(req->chunks[i].providers + req->chunks[i].cur_provider, 
+            //     req->chunks[i].providers + req->chunks[i].cur_provider + 1,
+            //     (req->chunks[i].provider_cnt - req->chunks[i].cur_provider - 1) * sizeof(int));
+            // -- req->chunks[i].provider_cnt;
         }
     }
-
+    // printf("!!!\n");
     int ret = request_next_chunk(req);
     while(ret == 1){
         ret = request_next_chunk(req);
@@ -144,16 +157,16 @@ int add_provider(bt_requestor_t * req, char * hash, int peer_id){
         if(strncmp(req->chunks[i].hash, hash, SHA1_HASH_SIZE * 2))
             continue;
         for(j=0; j<req->chunks[i].provider_cnt; ++j){
-            if(req->chunks[i].providers[j] == peer_id)
-                return 0;
+            if(req->chunks[i].providers[j] == peer_id){
+                break;
+            }
         }
+        if(j < req->chunks[i].provider_cnt)
+            continue;
         req->chunks[i].providers[req->chunks[i].provider_cnt] = peer_id;
         ++ req->chunks[i].provider_cnt;
-        int n = find_next(req->chunks[i].providers, req->chunks[i].provider_cnt, req->downloading);
-        if(n != -1){
-            send_get(req, n ,i);
-        }
     }
+    request_next_chunk(req);
     return 0;
 }
 
@@ -171,12 +184,15 @@ int finish_chunk(bt_requestor_t * req, int chunk_id){
         fseek(fout, chunk_id * BT_CHUNK_SIZE, SEEK_SET);
     fwrite(req->chunks[chunk_id].data_buf, BT_CHUNK_SIZE, 1, fout);
     fclose(fout);
+    int provider = req->chunks[chunk_id].cur_provider;
+    req->downloading[provider] = -1;
+    req->chunks[chunk_id].finished = 1;
+    req->chunks[chunk_id].cur_provider = -1;
+    req->chunks[chunk_id].last_packet = 0;
+    req->chunks[chunk_id].finished = 1;
     if(--req->left == 0){
         finish_file(req);
     }else{
-        int provider = req->chunks[chunk_id].cur_provider;
-        req->downloading[provider] = -1;
-        req->chunks[chunk_id].finished = 1;
         request_next_chunk(req);
     }
     return 0;
@@ -187,6 +203,7 @@ int update_data(bt_requestor_t * req, int peer_id, data_packet_t * packet){
     if(chunk_id == -1)
         return 0;
 
+    req->chunks[chunk_id].last_packet = BT_DATA_TIMEOUT;
     int offset = packet->header.seq_num * BT_PACKET_DATA_SIZE;
     memcpy(req->chunks[chunk_id].data_buf + offset, packet->data, BT_PACKET_DATA_SIZE * sizeof(char));
     if(req->chunks[chunk_id].recved[packet->header.seq_num] == 0){
@@ -195,7 +212,6 @@ int update_data(bt_requestor_t * req, int peer_id, data_packet_t * packet){
             finish_chunk(req, chunk_id);
         }
     }
-    req->chunks[chunk_id].last_packet = BT_DATA_TIMEOUT;
     send_ack(req, peer_id, packet);
     return 0;
 }

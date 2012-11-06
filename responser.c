@@ -42,6 +42,7 @@ int init_responser(bt_responser_t * res, char * has_chunk_file, char * chunk_fil
 }
 
 int responser_connection_closed(bt_responser_t * res, int peer){
+    // printf("!!!\n");
     if(res->uploadingto[peer]){
         res->uploadingto[peer] = 0;
         -- res->uploading_cnt;
@@ -52,7 +53,7 @@ int responser_connection_closed(bt_responser_t * res, int peer){
 int send_ihave(bt_responser_t * res, int peer_id, char * hash){
     printf("Sending I have %s\n", hash);
     data_packet_t packet;
-    packet.header.magicnum = 15441;
+    packet.header.magicnum = BT_MAGIC;
     packet.header.version = 1;
     packet.header.packet_type = 1;
     packet.header.header_len = sizeof(header_t);
@@ -86,7 +87,7 @@ int send_chunk(bt_responser_t * res, int peer_id, int chunk_id){
     for(i=0; i<BT_CHUNK_SIZE; i+=BT_PACKET_DATA_SIZE){
         fread(buf, BT_PACKET_DATA_SIZE, 1, fin);
         data_packet_t * packet = (data_packet_t *) malloc(sizeof(data_packet_t));
-        packet->header.magicnum = 15441;
+        packet->header.magicnum = BT_MAGIC;
         packet->header.version = 1;
         packet->header.packet_type = 3;
         packet->header.header_len = sizeof(header_t);
@@ -97,7 +98,6 @@ int send_chunk(bt_responser_t * res, int peer_id, int chunk_id){
         memcpy(packet->data, buf, BT_PACKET_DATA_SIZE);
         send_packet_cc(peer_id, packet);
     }
-    connection_closed(peer_id);
     return 0;
 }
 

@@ -8,6 +8,7 @@
 #define BT_FILENAME_LEN 255
 #define BT_CHUNK_SIZE (512 * 1024)
 #define BT_MAX_PEERS 1024
+#define BT_MAGIC 15441
 
 typedef struct header_s {
   short magicnum;
@@ -23,6 +24,7 @@ typedef struct data_packet {
   header_t header;
   char * data;
 } data_packet_t;
+int free_packet(data_packet_t * packet);
 
 
 int send_packet(int peer, data_packet_t * packet);
