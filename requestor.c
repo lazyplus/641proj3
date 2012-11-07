@@ -126,6 +126,9 @@ int send_ack(bt_requestor_t * req, int peer, data_packet_t * packet){
 }
 
 int requstor_timeout(bt_requestor_t * req){
+    if(req->in_progress == 0)
+        return 0;
+
     int i;
     for(i=0; i<req->chunk_cnt; ++i){
         if(req->chunks[i].finished == 0 && req->chunks[i].cur_provider != -1 && req->chunks[i].last_packet > 0 && (--req->chunks[i].last_packet  == 0)){
@@ -217,6 +220,9 @@ int update_data(bt_requestor_t * req, int peer_id, data_packet_t * packet){
 }
 
 int requestor_packet(bt_requestor_t * req, int peer_id, data_packet_t * packet){
+    if(req->in_progress == 0)
+        return 0;
+    
     // IHAVE
     if(packet->header.packet_type == 1){
         int i;
