@@ -5,6 +5,7 @@
 
 #define BUFFER_LEN (BT_CHUNK_SIZE / BT_PACKET_DATA_SIZE)
 #define START_WINDOW_SIZE 64
+#define START_SSTHRESH_SIZE 128
 #define DUP_ACK_THRES 3
 #define ACK_TIMEOUT (CLOCKS_PER_SEC * 2)
 #define BT_RTT_ALPHA (0.9)
@@ -20,12 +21,22 @@ typedef struct bt_sender{
     int id;
     int peer;
     double rtt;
+    // for congestion control
+    window_state_t window_state;
+    int window_ssthresh;
     int window_size;
+    int  last_window_update_clock;
     int last_ack_num;
     int last_ack_cnt;
     int head, tail;
     packet_pointer_t pkt_buf[BUFFER_LEN];
 }bt_sender_t;
+
+typedef enum window_state
+{
+    SLOW_START = 0,
+    CONG_CTL
+} window_state_t;
 
 void init_sender(bt_sender_t *sender, int id);
 int ctl_udp_send(bt_sender_t *sender, int peer, data_packet_t *new_packet);

@@ -4,8 +4,12 @@
 #include "send.h"
 
 void init_sender(bt_sender_t *sender, int id){
-    sender->tail = sender->head = 0;
+    sender->tail = sender->head = 0;    
     sender->window_size = START_WINDOW_SIZE;
+    // for congestion control
+    sender->window_state = SLOW_START;
+    sender->window_ssthresh = START_SSTHRESH_SIZE;
+    sender->last_window_update_clock = clock();
     sender->id = id;
     sender->last_ack_num = 0;
     sender->last_ack_cnt = 0;
@@ -13,10 +17,54 @@ void init_sender(bt_sender_t *sender, int id){
 }
 
 int wd_lost(bt_sender_t * sender){
+    int old_size = sender->window_size;
+    switch(sender->window_state){
+    case SLOW_START:
+        // set window size to 1
+	sender->window_size = 1;
+        // update ssthreshold
+        sender->window_ssthresh = (old_size/2 > 2)? (old_size/2):2;
+	break;
+    case CONG_CTL:
+        // set window size to 1
+	sender->window_size = 1;
+	// update ssthreshold
+	sender->window_ssthresh = (old_size/2 > 2)? (old_size/2):2;
+	// change to slow start
+        sender->window_state = SLOW_START;
+        printf("Sender %d : %d window CONG_CTL --> SLOW_START\n", sender->peer,sender->id);
+        break;
+    default:
+        printf("Err: Illegal window state\n");
+        break;
+    }
     return 0;
 }
 
 int wd_ack(bt_sender_t * sender){
+    int cur_clock = clock();
+    switch(sender->window_state){
+    case SLOW_START:
+        // window size ++
+        sender->window_size++;
+        if (sender->window_size > sender->window_ssthresh){
+	    sender->window_state = CONG_CTL;
+            printf("Sender %d : %d window SLOW_START --> CONG_CTL\n", sender->peer, sender->id);
+	}
+        sender->last_window_update_clock = clock();
+	break;
+    case CONG_CTL:
+        double time_interval = (double)(cur_clock - sender->last_window_update_clock)/CLOCKS_PER_SEC;
+        if(time_interval >= sender->rtt){
+	    // window size ++
+	    sender->window_size++;
+	}
+	sender->last_window_update_clock = clock();
+        break;
+    default:
+        printf("Err: Illegal window state\n");
+        break;
+    }
     return 0;
 }
 
