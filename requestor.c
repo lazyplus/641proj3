@@ -64,11 +64,15 @@ int init_requestor(bt_requestor_t * req, char * chunkfile, char * outputfile){
     return 0;
 }
 
-int find_next(int * a, int n, int * b){
-    int i;
-    for(i=0; i<n; ++i){
-        if(b[a[i]] == -1){
-            return a[i];
+int find_next_provider(bt_requestor_t * req, int chunk_id){
+    int i = req->chunks[chunk_id].last_provider;
+    int j;
+    int n = req->chunks[chunk_id].provider_cnt;
+    for(j=0, i=(i+1)%n; j<n; ++j, i=(i+1)%n){
+        int p = req->chunks[chunk_id].providers[i];
+        if(req->downloading[p] == -1){
+            req->chunks[chunk_id].last_provider = i;
+            return p;
         }
     }
     return -1;
@@ -103,7 +107,7 @@ int request_next_chunk(bt_requestor_t * req){
         // printf("Chunk %d %d %d\n", i, req->chunks[i].finished, req->chunks[i].cur_provider);
         if(req->chunks[i].finished == 0 && req->chunks[i].cur_provider == -1){
             printf("Finding next provider for chunk %d\n", i);
-            int new_provider = find_next(req->chunks[i].providers, req->chunks[i].provider_cnt, req->downloading);
+            int new_provider = find_next_provider(req, i);
             printf("Get new provider %d\n", new_provider);
             if(new_provider != -1){
                 send_get(req, new_provider, i);

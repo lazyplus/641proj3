@@ -25,6 +25,7 @@ int wd_lost(bt_sender_t * sender){
 	sender->window_size = 1;
 	if (window_size_log != NULL){
 	    fprintf(window_size_log, "%d    %d    %d\n",sender->id, cur_time, sender->window_size);
+        fflush(window_size_log);
 	}else{
 	    printf("Err: empty window size log pointer\n");
 	}
@@ -36,6 +37,7 @@ int wd_lost(bt_sender_t * sender){
 	sender->window_size = 1;
 	if (window_size_log != NULL){
 	    fprintf(window_size_log, "%d    %d    %d\n",sender->id, cur_time, sender->window_size);
+        fflush(window_size_log);
 	}else{
 	    printf("Err: empty window size log pointer\n");
 	}
@@ -62,6 +64,7 @@ int wd_ack(bt_sender_t * sender){
         // log window change
 	if (window_size_log != NULL){
 	    fprintf(window_size_log, "%d    %d    %d\n",sender->id, cur_clock, sender->window_size);
+        fflush(window_size_log);
 	}else{
 	    printf("Err: empty window size log pointer\n");
 	}
@@ -79,6 +82,7 @@ int wd_ack(bt_sender_t * sender){
 	    // log window change
 	    if (window_size_log != NULL){
 	        fprintf(window_size_log, "%d    %d    %d\n",sender->id, cur_clock, sender->window_size);
+            fflush(window_size_log);
 	    }else{
 	    	printf("Err: empty window size log pointer\n");
 	    }

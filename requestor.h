@@ -8,6 +8,7 @@
 #define BT_DATA_TIMEOUT 5
 
 struct chunk_status_s{
+    int last_provider;
     int last_packet;
     char data_buf[BT_CHUNK_SIZE];
     int left;
