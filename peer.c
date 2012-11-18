@@ -19,6 +19,7 @@ bt_requestor_t requestor;
 bt_responser_t responser;
 bt_sender_t senders[BT_MAX_UPLOAD];
 int conn_cnt = 0;
+FILE * window_size_log;
 
 int free_packet(data_packet_t * packet){
   free(packet->data);
@@ -189,6 +190,9 @@ void peer_run() {
   for(i=0; i<BT_MAX_UPLOAD; ++i){
     senders[i].is_idle = 1;
   }
+
+  //open window size change log
+  window_size_log = fopen("problem2-peer.txt", "w+");
 
   while (1) {
     int nfds;

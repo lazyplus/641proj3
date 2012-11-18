@@ -18,16 +18,27 @@ void init_sender(bt_sender_t *sender, int id){
 
 int wd_lost(bt_sender_t * sender){
     int old_size = sender->window_size;
+    int cur_time = clock();
     switch(sender->window_state){
     case SLOW_START:
         // set window size to 1
 	sender->window_size = 1;
+	if (window_size_log != NULL){
+	    fprintf(window_size_log, "%d    %d    %d\n",sender->id, cur_time, sender->window_size);
+	}else{
+	    printf("Err: empty window size log pointer\n");
+	}
         // update ssthreshold
         sender->window_ssthresh = (old_size/2 > 2)? (old_size/2):2;
 	break;
     case CONG_CTL:
         // set window size to 1
 	sender->window_size = 1;
+	if (window_size_log != NULL){
+	    fprintf(window_size_log, "%d    %d    %d\n",sender->id, cur_time, sender->window_size);
+	}else{
+	    printf("Err: empty window size log pointer\n");
+	}
 	// update ssthreshold
 	sender->window_ssthresh = (old_size/2 > 2)? (old_size/2):2;
 	// change to slow start
@@ -43,21 +54,34 @@ int wd_lost(bt_sender_t * sender){
 
 int wd_ack(bt_sender_t * sender){
     int cur_clock = clock();
+    double time_interval;
     switch(sender->window_state){
     case SLOW_START:
         // window size ++
         sender->window_size++;
-        if (sender->window_size > sender->window_ssthresh){
+        // log window change
+	if (window_size_log != NULL){
+	    fprintf(window_size_log, "%d    %d    %d\n",sender->id, cur_clock, sender->window_size);
+	}else{
+	    printf("Err: empty window size log pointer\n");
+	}
+	if (sender->window_size > sender->window_ssthresh){
 	    sender->window_state = CONG_CTL;
             printf("Sender %d : %d window SLOW_START --> CONG_CTL\n", sender->peer, sender->id);
 	}
         sender->last_window_update_clock = clock();
 	break;
     case CONG_CTL:
-        double time_interval = (double)(cur_clock - sender->last_window_update_clock)/CLOCKS_PER_SEC;
+        time_interval = (double)(cur_clock - sender->last_window_update_clock)/CLOCKS_PER_SEC;
         if(time_interval >= sender->rtt){
 	    // window size ++
 	    sender->window_size++;
+	    // log window change
+	    if (window_size_log != NULL){
+	        fprintf(window_size_log, "%d    %d    %d\n",sender->id, cur_clock, sender->window_size);
+	    }else{
+	    	printf("Err: empty window size log pointer\n");
+	    }
 	}
 	sender->last_window_update_clock = clock();
         break;
