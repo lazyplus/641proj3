@@ -8,6 +8,7 @@
 #define BT_FILENAME_LEN 255
 #define BT_CHUNK_SIZE (512 * 1024)
 #define BT_MAX_PEERS 1024
+#define BT_MAX_UPLOAD 4
 #define BT_MAGIC 15441
 
 typedef struct header_s {

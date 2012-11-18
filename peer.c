@@ -1,14 +1,3 @@
-/*
- * peer.c
- *
- * Authors: Ed Bardsley <ebardsle+441@andrew.cmu.edu>,
- *          Dave Andersen
- * Class: 15-441 (Spring 2005)
- *
- * Skeleton for 15-441 Project 2.
- *
- */
-
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -28,7 +17,8 @@
 bt_config_t config;
 bt_requestor_t requestor;
 bt_responser_t responser;
-struct bt_sender_s sender;
+bt_sender_t senders[BT_MAX_UPLOAD];
+int conn_cnt = 0;
 
 int free_packet(data_packet_t * packet){
   free(packet->data);
@@ -54,7 +44,13 @@ int send_packet(int peer, data_packet_t * packet){
 }
 
 int send_packet_cc(int peer, data_packet_t * packet){
-  return ctl_udp_send(&sender, peer, packet);
+    int i;
+    for(i=0; i<BT_MAX_UPLOAD; ++i){
+        if(!senders[i].is_idle && senders[i].peer == peer){
+            return ctl_udp_send(&senders[i], peer, packet);
+        }
+    }
+    return -1;
 }
 
 int connection_closed(int peer){
@@ -76,11 +72,7 @@ int main(int argc, char **argv) {
 
   bt_parse_command_line(&config);
 
-// #ifdef DEBUG
-  // if (debug & DEBUG_INIT) {
-    bt_dump_config(&config);
-  // }
-// #endif
+  bt_dump_config(&config);
   
   peer_run(&config);
   return 0;
@@ -122,14 +114,19 @@ void process_inbound_udp(int sock) {
     return;
   }
   
-  int peer_id = p->id;
+  int peer = p->id;
 
   if(packet.header.packet_type == 1 || packet.header.packet_type == 3 || packet.header.packet_type == 5){
-    requestor_packet(&requestor, peer_id, &packet);
+    requestor_packet(&requestor, peer, &packet);
   }else if(packet.header.packet_type == 0 || packet.header.packet_type == 2){
-    responser_packet(&responser, peer_id, &packet);
+    responser_packet(&responser, peer, &packet);
   }else{
-    ctl_udp_ack(&sender, peer_id, &packet);
+      int i;
+      for(i=0; i<BT_MAX_UPLOAD; ++i){
+          if(!senders[i].is_idle && senders[i].peer == peer){
+              ctl_udp_ack(&senders[i], peer, &packet);
+          }
+      }
   }
 }
 
@@ -188,7 +185,10 @@ void peer_run() {
   config.sock_fd = sock;
 
   init_responser(&responser, config.has_chunk_file, config.chunk_file);
-  init_sender(&sender);
+  int i;
+  for(i=0; i<BT_MAX_UPLOAD; ++i){
+    senders[i].is_idle = 1;
+  }
 
   while (1) {
     int nfds;

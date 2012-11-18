@@ -4,8 +4,11 @@
 #include <unistd.h>
 #include "responser.h"
 #include "bt_parse.h"
+#include "send.h"
 
+extern int conn_cnt;
 extern bt_config_t config;
+extern bt_sender_t senders[BT_MAX_UPLOAD];
 
 int init_responser(bt_responser_t * res, char * has_chunk_file, char * chunk_file){
     FILE * fin = fopen(has_chunk_file, "r");
@@ -46,11 +49,17 @@ int responser_connection_closed(bt_responser_t * res, int peer){
     if(res->uploadingto[peer]){
         res->uploadingto[peer] = 0;
         -- res->uploading_cnt;
+        int i;
+        for(i=0; i<BT_MAX_UPLOAD; ++i){
+            if(!senders[i].is_idle && senders[i].peer == peer){
+                senders[i].is_idle = 1;
+            }
+        }
     }
     return 0;
 }
 
-int send_ihave(bt_responser_t * res, int peer_id, char * hash){
+int send_ihave(bt_responser_t * res, int peer, char * hash){
     printf("Sending I have %s\n", hash);
     data_packet_t packet;
     packet.header.magicnum = BT_MAGIC;
@@ -60,14 +69,25 @@ int send_ihave(bt_responser_t * res, int peer_id, char * hash){
     packet.data = malloc(SHA1_HASH_SIZE * 2 * sizeof(char));
     memcpy(packet.data, hash, SHA1_HASH_SIZE * 2 * sizeof(char));
     packet.header.packet_len = SHA1_HASH_SIZE * 2;
-    send_packet(peer_id, &packet);
+    send_packet(peer, &packet);
     return 0;
 }
 
-int send_chunk(bt_responser_t * res, int peer_id, int chunk_id){
-    printf("Sending Chunk %d to %d\n", chunk_id, peer_id);
+int find_sender(){
+    int i=0;
+    for(; i<BT_MAX_UPLOAD; ++i){
+        if(senders[i].is_idle){
+            init_sender(&senders[i], ++ conn_cnt);
+            return i;
+        }
+    }
+    return -1;
+}
 
-    if(res->uploadingto[peer_id]){
+int send_chunk(bt_responser_t * res, int peer, int chunk_id){
+    printf("Sending Chunk %d to %d\n", chunk_id, peer);
+
+    if(res->uploadingto[peer]){
         printf("Already in progress\n");
         return -1;
     }
@@ -77,7 +97,16 @@ int send_chunk(bt_responser_t * res, int peer_id, int chunk_id){
         return -1;
     }
 
-    res->uploadingto[peer_id] = 1;
+    int sender_id = find_sender();
+    if(sender_id == -1){
+        printf("No sender available!\n");
+        return -1;
+    }
+
+    printf("sender allocated %d\n", sender_id);
+    senders[sender_id].peer = peer;
+
+    res->uploadingto[peer] = 1;
     ++ res->uploading_cnt;
 
     static char buf[BT_PACKET_DATA_SIZE];
@@ -96,12 +125,12 @@ int send_chunk(bt_responser_t * res, int peer_id, int chunk_id){
         packet->header.seq_num = i / BT_PACKET_DATA_SIZE;
         packet->data = malloc(BT_PACKET_DATA_SIZE);
         memcpy(packet->data, buf, BT_PACKET_DATA_SIZE);
-        send_packet_cc(peer_id, packet);
+        ctl_udp_send(&senders[sender_id], peer, packet);
     }
     return 0;
 }
 
-int responser_packet(bt_responser_t * res, int peer_id, data_packet_t * packet){
+int responser_packet(bt_responser_t * res, int peer, data_packet_t * packet){
     // WHOHAS
     if(packet->header.packet_type == 0){
         int i = 0, j;
@@ -109,7 +138,7 @@ int responser_packet(bt_responser_t * res, int peer_id, data_packet_t * packet){
             for(j=0; j<res->chunk_cnt; ++j){
                 printf("Comparing %s %s\n", packet->data + i, res->chunks[j].hash);
                 if(strncmp(packet->data + i, res->chunks[j].hash, SHA1_HASH_SIZE * 2) == 0){
-                    send_ihave(res, peer_id, packet->data + i);
+                    send_ihave(res, peer, packet->data + i);
                 }
             }
         }
@@ -119,7 +148,7 @@ int responser_packet(bt_responser_t * res, int peer_id, data_packet_t * packet){
         int i;
         for(i=0; i<res->chunk_cnt; ++i){
             if(strncmp(packet->data, res->chunks[i].hash, SHA1_HASH_SIZE * 2) == 0){
-                send_chunk(res, peer_id, res->chunks[i].id);
+                send_chunk(res, peer, res->chunks[i].id);
                 break;
             }
         }

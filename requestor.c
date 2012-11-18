@@ -214,6 +214,11 @@ int update_data(bt_requestor_t * req, int peer_id, data_packet_t * packet){
         if(-- req->chunks[chunk_id].left == 0){
             finish_chunk(req, chunk_id);
         }
+        // cumulative ACK
+        int seq_num = packet->header.seq_num;
+        while(seq_num < BT_CHUNK_SIZE / BT_PACKET_DATA_SIZE && req->chunks[chunk_id].recved[seq_num] == 1)
+            ++ seq_num;
+        packet->header.seq_num = seq_num;
     }
     send_ack(req, peer_id, packet);
     return 0;
