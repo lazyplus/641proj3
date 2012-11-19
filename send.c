@@ -154,10 +154,7 @@ int ctl_udp_ack(bt_sender_t *sender, int peer, data_packet_t *new_packet){
             // Not the ACK of last packet
             if(sender->last_ack_num < BUFFER_LEN){
                 wd_lost(sender);
-            }
-            int i;
-            for(i=sender->last_ack_num; i<sender->tail && i - sender->head < sender->window_size; ++i){
-                ctl_send(sender, i);
+                ctl_send(sender, sender->last_ack_num);
             }
         }
     }else if(new_packet->header.ack_num > sender->last_ack_num){
