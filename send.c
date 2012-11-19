@@ -56,7 +56,7 @@ int wd_lost(bt_sender_t * sender){
 
 int wd_ack(bt_sender_t * sender){
     int cur_clock = clock();
-    double time_interval;
+    int time_interval;
     switch(sender->window_state){
     case SLOW_START:
         // window size ++
@@ -75,7 +75,7 @@ int wd_ack(bt_sender_t * sender){
         sender->last_window_update_clock = clock();
 	break;
     case CONG_CTL:
-        time_interval = (double)(cur_clock - sender->last_window_update_clock)/CLOCKS_PER_SEC;
+        time_interval = (cur_clock - sender->last_window_update_clock);
         if(time_interval >= sender->rtt){
 	    // window size ++
 	    sender->window_size++;
@@ -125,7 +125,7 @@ int ctl_udp_send(bt_sender_t *sender, int peer, data_packet_t *new_packet){
 
 int update_rtt(bt_sender_t * sender, int sent_ts){
     int cur_time = clock();
-    double new_rtt = (double)(cur_time - sent_ts) / CLOCKS_PER_SEC;
+    double new_rtt = cur_time - sent_ts;
     sender->rtt = BT_RTT_ALPHA * sender->rtt + (1 - BT_RTT_ALPHA) * new_rtt;
     return 0;
 }

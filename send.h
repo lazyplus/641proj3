@@ -28,7 +28,7 @@ typedef struct bt_sender{
     int is_idle;
     int id;
     int peer;
-    double rtt;
+    int rtt;
     // for congestion control
     window_state_t window_state;
     int window_ssthresh;
