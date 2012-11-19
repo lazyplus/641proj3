@@ -125,7 +125,7 @@ int ctl_udp_send(bt_sender_t *sender, int peer, data_packet_t *new_packet){
 
 int update_rtt(bt_sender_t * sender, int sent_ts){
     int cur_time = clock();
-    double new_rtt = cur_time - sent_ts;
+    int new_rtt = cur_time - sent_ts;
     sender->rtt = BT_RTT_ALPHA * sender->rtt + (1 - BT_RTT_ALPHA) * new_rtt;
     return 0;
 }
