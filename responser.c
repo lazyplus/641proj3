@@ -45,7 +45,7 @@ int init_responser(bt_responser_t * res, char * has_chunk_file, char * chunk_fil
 }
 
 int responser_connection_closed(bt_responser_t * res, int peer){
-    // printf("!!!\n");
+    printf("Closing connection to %d\n", peer);
     if(res->uploadingto[peer]){
         res->uploadingto[peer] = 0;
         -- res->uploading_cnt;
@@ -53,6 +53,8 @@ int responser_connection_closed(bt_responser_t * res, int peer){
         for(i=0; i<BT_MAX_UPLOAD; ++i){
             if(!senders[i].is_idle && senders[i].peer == peer){
                 senders[i].is_idle = 1;
+                printf("Closing sender %d\n", i);
+                break;
             }
         }
     }

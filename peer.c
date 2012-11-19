@@ -90,7 +90,7 @@ void process_inbound_udp(int sock) {
   buf[ret] = 0;
   data_packet_t packet = * (data_packet_t *) buf;
   packet.data = buf + sizeof(header_t);
-  // if()printf("Got packet %d\n", packet.header.seq_num);
+
   if(packet.header.magicnum != BT_MAGIC){
     printf("Ignoring unrecognizable packet\n");
     return;
@@ -122,12 +122,12 @@ void process_inbound_udp(int sock) {
   }else if(packet.header.packet_type == 0 || packet.header.packet_type == 2){
     responser_packet(&responser, peer, &packet);
   }else{
-      int i;
-      for(i=0; i<BT_MAX_UPLOAD; ++i){
-          if(!senders[i].is_idle && senders[i].peer == peer){
-              ctl_udp_ack(&senders[i], peer, &packet);
-          }
+    int i;
+    for(i=0; i<BT_MAX_UPLOAD; ++i){
+      if(!senders[i].is_idle && senders[i].peer == peer){
+        ctl_udp_ack(&senders[i], peer, &packet);
       }
+    }
   }
 }
 
@@ -152,7 +152,6 @@ void handle_user_input(char *line, void *cbdata) {
     }
   }
 }
-
 
 void peer_run() {
   int sock;
@@ -218,6 +217,10 @@ void peer_run() {
       }
     } else {
       requstor_timeout(&requestor);
+      for(i=0; i<BT_MAX_UPLOAD; ++i){
+        if(!senders[i].is_idle)
+          ctl_udp_time_out(&senders[i]);
+      }
     }
   }
 }
