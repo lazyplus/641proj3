@@ -68,6 +68,8 @@ int find_next_provider(bt_requestor_t * req, int chunk_id){
     int i = req->chunks[chunk_id].last_provider;
     int j;
     int n = req->chunks[chunk_id].provider_cnt;
+    if(n == 0)
+        return -1;
     for(j=0, i=(i+1)%n; j<n; ++j, i=(i+1)%n){
         int p = req->chunks[chunk_id].providers[i];
         if(req->downloading[p] == -1){
@@ -186,7 +188,7 @@ int finish_file(bt_requestor_t * req){
 
 int finish_chunk(bt_requestor_t * req, int chunk_id){
     printf("Chunk %d Finished!\n", chunk_id);
-    FILE * fout = fopen(req->outputfile, "a+");
+    FILE * fout = fopen(req->outputfile, "r+b");
     if(chunk_id)
         fseek(fout, chunk_id * BT_CHUNK_SIZE, SEEK_SET);
     fwrite(req->chunks[chunk_id].data_buf, BT_CHUNK_SIZE, 1, fout);
