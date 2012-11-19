@@ -133,7 +133,7 @@ int update_rtt(bt_sender_t * sender, int sent_ts){
 int ctl_udp_ack(bt_sender_t *sender, int peer, data_packet_t *new_packet){
     int last_sent = sender->head + sender->window_size;
 
-    // printf("Get ACK for %d\n", new_packet->header.ack_num);
+    printf("Get ACK for %d\n", new_packet->header.ack_num);
     // duplicated ACK
     if(new_packet->header.ack_num == sender->last_ack_num){
         if( ++ sender->last_ack_cnt >= DUP_ACK_THRES){

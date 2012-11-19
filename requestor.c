@@ -90,6 +90,8 @@ int send_get(bt_requestor_t * req, int provider, int chunk_id){
     req->chunks[chunk_id].cur_provider = provider;
     req->chunks[chunk_id].left = BT_CHUNK_SIZE / BT_PACKET_DATA_SIZE;
     req->chunks[chunk_id].last_packet = BT_DATA_TIMEOUT;
+    memset(req->chunks[chunk_id].recved, 0, sizeof(req->chunks[chunk_id].recved));
+    req->chunks[chunk_id].cur_ack = 0;
 
     data_packet_t packet;
     packet.header.magicnum = BT_MAGIC;
@@ -220,13 +222,14 @@ int update_data(bt_requestor_t * req, int peer_id, data_packet_t * packet){
         if(-- req->chunks[chunk_id].left == 0){
             finish_chunk(req, chunk_id);
         }
-        // cumulative ACK
-        int seq_num = packet->header.seq_num;
-        while(seq_num < BT_CHUNK_SIZE / BT_PACKET_DATA_SIZE && req->chunks[chunk_id].recved[seq_num] == 1)
-            ++ seq_num;
-        packet->header.seq_num = seq_num;
     }
+    // cumulative ACK
+    int seq_num = req->chunks[chunk_id].cur_ack;
+    while(seq_num < BT_CHUNK_SIZE / BT_PACKET_DATA_SIZE && req->chunks[chunk_id].recved[seq_num] == 1)
+        ++ seq_num;
+    packet->header.seq_num = seq_num;
     send_ack(req, peer_id, packet);
+    req->chunks[chunk_id].cur_ack = seq_num;
     return 0;
 }
 
