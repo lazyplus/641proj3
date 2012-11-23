@@ -144,6 +144,19 @@ int update_rtt(bt_sender_t * sender, long sent_ts){
     return 0;
 }
 
+int check_too_near(bt_sender_t *sender, int ack_num){
+    int i;
+    for(i=sender->head; i< sender->tail; ++i){
+        if(sender->pkt_buf[i].data->header.seq_num == ack_num){
+            int cur_time = my_get_time();
+            if(cur_time - sender->pkt_buf[i].sent_ts < sender->rtt / 50){
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 int ctl_udp_ack(bt_sender_t *sender, int peer, data_packet_t *new_packet){
     int last_sent = sender->head + sender->window_size;
 
@@ -151,10 +164,14 @@ int ctl_udp_ack(bt_sender_t *sender, int peer, data_packet_t *new_packet){
     // duplicated ACK
     if(new_packet->header.ack_num == sender->last_ack_num){
         if( ++ sender->last_ack_cnt >= DUP_ACK_THRES){
-            // Not the ACK of last packet
-            if(sender->last_ack_num < BUFFER_LEN){
-                wd_lost(sender);
-                ctl_send(sender, sender->last_ack_num);
+            if(check_too_near(sender, new_packet->header.ack_num)){
+                -- sender->last_ack_cnt;
+            }else{
+                // Not the ACK of last packet
+                if(sender->last_ack_num < BUFFER_LEN){
+                    wd_lost(sender);
+                    ctl_send(sender, sender->last_ack_num);
+                }
             }
         }
     }else if(new_packet->header.ack_num > sender->last_ack_num){
