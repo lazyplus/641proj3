@@ -77,7 +77,7 @@ int spiffy_recvfrom (int socket, void *buffer, size_t size, int flags, struct so
 		addr->sa_family = AF_INET;
 		((struct sockaddr_in*)addr)->sin_addr.s_addr = s_head.lSrcAddr;
 		((struct sockaddr_in*)addr)->sin_port = s_head.lSrcPort;
-//		printf("Spiffy recvfrom %s:%d\n", inet_ntoa(((struct sockaddr_in*)addr)->sin_addr), ntohs(((struct sockaddr_in*)addr)->sin_port));
+		// printf("Spiffy recvfrom %s:%d\n", inet_ntoa(((struct sockaddr_in*)addr)->sin_addr), ntohs(((struct sockaddr_in*)addr)->sin_port));
 		retVal -= sizeof(spiffy_header);
 	}
 	if(retVal < 0) {

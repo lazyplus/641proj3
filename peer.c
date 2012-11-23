@@ -179,10 +179,12 @@ void peer_run() {
     exit(-1);
   }
   
-  spiffy_init(config.identity, (struct sockaddr *)&myaddr, sizeof(myaddr));
   struct timeval time_out;
   int stdin_closed = 0;
   config.sock_fd = sock;
+
+  bt_peer_t *p = bt_peer_info(&config, config.identity);
+  spiffy_init(config.identity, &p->addr, sizeof(struct sockaddr_in));
 
   init_responser(&responser, config.has_chunk_file, config.chunk_file);
   int i;
