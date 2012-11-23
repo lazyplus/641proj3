@@ -31,6 +31,7 @@ typedef struct bt_sender{
     int id;
     int peer;
     long rtt;
+    long last_tick;
     // for congestion control
     window_state_t window_state;
     int window_ssthresh;

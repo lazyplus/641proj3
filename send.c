@@ -24,6 +24,7 @@ void init_sender(bt_sender_t *sender, int id){
     sender->last_ack_cnt = 0;
     sender->is_idle = 0;
     sender->rtt = 0;
+    sender->last_tick = 0;
 }
 
 int wd_lost(bt_sender_t * sender){
@@ -215,7 +216,13 @@ int ctl_udp_ack(bt_sender_t *sender, int peer, data_packet_t *new_packet){
 }
 
 int ctl_udp_time_out(bt_sender_t *sender){
+    if(sender->is_idle)
+        return 0;
     long cur_time = my_get_time();
+    if(cur_time - sender->last_tick < sender->rtt * 2){
+        return 0;
+    }
+    sender->last_tick = cur_time;
     int i;
     printf("tick %d %d\n", sender->head, sender->tail);
     for(i=sender->head; i<sender->tail; ++i){
