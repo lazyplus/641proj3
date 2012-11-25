@@ -216,7 +216,10 @@ int update_data(bt_requestor_t * req, int peer_id, data_packet_t * packet){
     int chunk_id = req->downloading[peer_id];
     if(chunk_id == -1)
         return 0;
-
+    
+    if(packet->header.seq_num < req->chunks[chunk_id].cur_ack)
+        return 0;
+    
     req->chunks[chunk_id].last_packet = BT_DATA_TIMEOUT;
     int offset = packet->header.seq_num * BT_PACKET_DATA_SIZE;
     memcpy(req->chunks[chunk_id].data_buf + offset, packet->data, BT_PACKET_DATA_SIZE * sizeof(char));
@@ -234,7 +237,7 @@ int update_data(bt_requestor_t * req, int peer_id, data_packet_t * packet){
         // printf("cur seq %d\n", seq_num);
         ++ seq_num;
     }
-        
+    
     packet->header.seq_num = seq_num;
     // printf("ack is %d\n", seq_num);
     send_ack(req, peer_id, packet);

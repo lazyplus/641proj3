@@ -4,12 +4,14 @@
 
 #include <sys/types.h>
 
+#define BT_MAX_PKT_SIZE 1500
 #define BT_PACKET_DATA_SIZE 512
 #define BT_FILENAME_LEN 255
 #define BT_CHUNK_SIZE (512 * 1024)
 #define BT_MAX_PEERS 1024
 #define BT_MAX_UPLOAD 4
 #define BT_MAGIC 15441
+#define TICKS_PER_MILISECOND 1000
 
 typedef struct header_s {
   short magicnum;
@@ -27,9 +29,10 @@ typedef struct data_packet {
 } data_packet_t;
 int free_packet(data_packet_t * packet);
 
-
 int send_packet(int peer, data_packet_t * packet);
 int send_packet_cc(int peer, data_packet_t * packet);
 int connection_closed(int peer);
+
+long my_get_time();
 
 #endif

@@ -1,15 +1,8 @@
 #include <stdio.h>
 #include <time.h>
-#include <sys/time.h>
 #include <string.h>
 #include "peer.h"
 #include "send.h"
-
-long my_get_time(){
-    struct timeval cur_time;
-    gettimeofday(&cur_time, NULL);
-    return cur_time.tv_sec * 1000000 + cur_time.tv_usec;
-}
 
 void init_sender(bt_sender_t *sender, int id){
     sender->tail = sender->head = 0;    
@@ -35,7 +28,7 @@ int wd_lost(bt_sender_t * sender){
         // set window size to 1
         sender->window_size = 1;
         if (window_size_log != NULL){
-            fprintf(window_size_log, "%d    %ld    %d\n",sender->id, cur_time, sender->window_size);
+            fprintf(window_size_log, "%d    %ld    %d\n",sender->id, cur_time / TICKS_PER_MILISECOND, sender->window_size);
             fflush(window_size_log);
         }else{
             printf("Err: empty window size log pointer\n");
@@ -47,7 +40,7 @@ int wd_lost(bt_sender_t * sender){
         // set window size to 1
         sender->window_size = 1;
         if (window_size_log != NULL){
-            fprintf(window_size_log, "%d    %ld    %d\n",sender->id, cur_time, sender->window_size);
+            fprintf(window_size_log, "%d    %ld    %d\n",sender->id, cur_time / TICKS_PER_MILISECOND, sender->window_size);
             fflush(window_size_log);
         }else{
             printf("Err: empty window size log pointer\n");
@@ -74,7 +67,7 @@ int wd_ack(bt_sender_t * sender){
         sender->window_size++;
         // log window change
         if (window_size_log != NULL){
-            fprintf(window_size_log, "%d    %ld    %d\n",sender->id, cur_clock, sender->window_size);
+            fprintf(window_size_log, "%d    %ld    %d\n",sender->id, cur_clock / TICKS_PER_MILISECOND, sender->window_size);
             fflush(window_size_log);
         }else{
             printf("Err: empty window size log pointer\n");
@@ -87,12 +80,13 @@ int wd_ack(bt_sender_t * sender){
         break;
     case CONG_CTL:
         time_interval = (cur_clock - sender->last_window_update_clock);
+        // printf("Time interval %ld %ld\n", sender->rtt, time_interval);
         if(time_interval >= sender->rtt){
             // window size ++
             sender->window_size++;
             // log window change
             if (window_size_log != NULL){
-                fprintf(window_size_log, "%d    %ld    %d\n",sender->id, cur_clock, sender->window_size);
+                fprintf(window_size_log, "%d    %ld    %d\n",sender->id, cur_clock / TICKS_PER_MILISECOND, sender->window_size);
                 fflush(window_size_log);
             }else{
                 printf("Err: empty window size log pointer\n");
@@ -109,7 +103,7 @@ int wd_ack(bt_sender_t * sender){
 
 int ctl_send(bt_sender_t * sender, int pos){
     sender->pkt_buf[pos].ack = 0;
-    if(pos - sender->head <= sender->window_size){
+    if(pos - sender->head < sender->window_size){
         sender->pkt_buf[pos].sent_ts = my_get_time();
         send_packet(sender->peer, sender->pkt_buf[pos].data);
         return 0;
@@ -139,9 +133,18 @@ int ctl_udp_send(bt_sender_t *sender, int peer, data_packet_t *new_packet){
 int update_rtt(bt_sender_t * sender, long sent_ts){
     long cur_time = my_get_time();
     long new_rtt = cur_time - sent_ts;
-    if(new_rtt * 50 < sender->rtt)
+    if(new_rtt * 5 < sender->rtt)
         return 0;
-    sender->rtt = (BT_RTT_ALPHA * sender->rtt + (10 - BT_RTT_ALPHA) * new_rtt) / 10;
+    if(sender->rtt && new_rtt / 5 > sender->rtt)
+        return 0;
+    if(sender->rtt == 0){
+        printf("First Time %ld\n", new_rtt);
+        sender->rtt = new_rtt;
+    }
+    else{
+        sender->rtt = (BT_RTT_ALPHA * sender->rtt + (10 - BT_RTT_ALPHA) * new_rtt) / 10;
+    }
+    // printf("rtt %ld %ld\n", new_rtt, sender->rtt);
     return 0;
 }
 
@@ -150,7 +153,7 @@ int check_too_near(bt_sender_t *sender, int ack_num){
     for(i=sender->head; i< sender->tail; ++i){
         if(sender->pkt_buf[i].data->header.seq_num == ack_num){
             int cur_time = my_get_time();
-            if(cur_time - sender->pkt_buf[i].sent_ts < sender->rtt / 50){
+            if(cur_time - sender->pkt_buf[i].sent_ts < sender->rtt){
                 return 1;
             }
         }
@@ -168,8 +171,10 @@ int ctl_udp_ack(bt_sender_t *sender, int peer, data_packet_t *new_packet){
             if(check_too_near(sender, new_packet->header.ack_num)){
                 -- sender->last_ack_cnt;
             }else{
+                sender->last_ack_cnt = 0;
                 // Not the ACK of last packet
-                if(sender->last_ack_num < BUFFER_LEN){
+                if(sender->last_ack_num < sender->head + sender->window_size){
+                    // printf("Dup! %d %ld %d\n", sender->last_ack_num, sender->rtt, sender->pkt_buf[sender->last_ack_num].sent_ts);
                     wd_lost(sender);
                     ctl_send(sender, sender->last_ack_num);
                 }
@@ -179,6 +184,8 @@ int ctl_udp_ack(bt_sender_t *sender, int peer, data_packet_t *new_packet){
         sender->last_ack_num = new_packet->header.ack_num;
         sender->last_ack_cnt = 1;
         wd_ack(sender);
+    }else{
+        return 0;
     }
 
     int i;
