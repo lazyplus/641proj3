@@ -7,6 +7,7 @@
 extern bt_config_t config;
 
 int send_whohas(bt_requestor_t * req, int chunk_id){
+    printf("Sending Whohas %d\n", chunk_id);
     data_packet_t packet;
     bt_peer_t *p;
     packet.header.magicnum = BT_MAGIC;
@@ -120,7 +121,7 @@ int request_next_chunk(bt_requestor_t * req){
                 return 1;
             }else if(new_provider == -1){
                 send_whohas(req, i);
-                printf("Error: chunk %d have no provider\n", i);
+                // printf("Error: chunk %d have no provider temp\n", i);
                 return -1;
             }
         }
@@ -154,9 +155,6 @@ int requstor_timeout(bt_requestor_t * req){
     int ret = request_next_chunk(req);
     while(ret == 1){
         ret = request_next_chunk(req);
-    }
-    if(ret == -1){
-        printf("Should abort downloading\n");
     }
 
     return 0;
@@ -192,7 +190,7 @@ int finish_file(bt_requestor_t * req){
 }
 
 int finish_chunk(bt_requestor_t * req, int chunk_id){
-    // printf("Chunk %d Finished!\n", chunk_id);
+    printf("Chunk %d Finished!\n", chunk_id);
     FILE * fout = fopen(req->outputfile, "r+b");
     if(chunk_id)
         fseek(fout, chunk_id * BT_CHUNK_SIZE, SEEK_SET);

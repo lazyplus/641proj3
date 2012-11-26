@@ -49,7 +49,7 @@ int wd_lost(bt_sender_t * sender){
         sender->window_ssthresh = (old_size/2 > 2)? (old_size/2):2;
         // change to slow start
         sender->window_state = SLOW_START;
-        printf("Sender %d : %d window CONG_CTL --> SLOW_START\n", sender->peer,sender->id);
+        // printf("Sender %d : %d window CONG_CTL --> SLOW_START\n", sender->peer,sender->id);
         break;
     default:
         printf("Err: Illegal window state\n");
@@ -74,7 +74,7 @@ int wd_ack(bt_sender_t * sender){
         }
         if (sender->window_size > sender->window_ssthresh){
             sender->window_state = CONG_CTL;
-                printf("Sender %d : %d window SLOW_START --> CONG_CTL\n", sender->peer, sender->id);
+                // printf("Sender %d : %d window SLOW_START --> CONG_CTL\n", sender->peer, sender->id);
         }
         sender->last_window_update_clock = cur_clock;
         break;
@@ -138,7 +138,7 @@ int update_rtt(bt_sender_t * sender, long sent_ts){
     if(sender->rtt && new_rtt / 5 > sender->rtt)
         return 0;
     if(sender->rtt == 0){
-        printf("First Time %ld\n", new_rtt);
+        // printf("First Time %ld\n", new_rtt);
         sender->rtt = new_rtt;
     }
     else{
