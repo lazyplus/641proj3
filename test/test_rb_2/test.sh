@@ -1,15 +1,19 @@
+mkdir -p server1
+mkdir -p server2
+
 cd ../../
 make clean
 CFLAG=-DTERM_FIN make
 
-cd ./test/test_rb_1
+cp peer test/test_rb_2/server1/peer
+cp peer test/test_rb_2/client/peer
 
-mkdir -p server1
-mkdir -p server2
+make clean
+CFLAG="-DTERM_FIN -DJUNK" make
 
-cp ../../peer client/peer
-cp ../../peer server1/peer
-cp ../../peer server2/peer
+cp peer test/test_rb_2/server2/peer
+
+cd ./test/test_rb_2
 
 ../../hupsim.pl -m config/topo.map -n config/nodes.map -p 12345 -v 0 &
 SIM_PID=$!
@@ -29,9 +33,6 @@ cd client
 ./peer -p ../config/nodes.map -c ../config/A.haschunks -m 4 -i 1 -f ../config/C.masterchunks < input.txt &
 CLIENT_PID=$!
 cd ..
-
-sleep 1
-kill -9 $SERVER_PID2
 
 wait $CLIENT_PID
 kill -9 $SIM_PID

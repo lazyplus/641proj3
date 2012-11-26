@@ -2,27 +2,19 @@ cd ../../
 make clean
 CFLAG=-DTERM_FIN make
 
-cd ./test/test_rb_1
-
-mkdir -p server1
-mkdir -p server2
-
+cd ./test/test_p2p_4
 cp ../../peer client/peer
-cp ../../peer server1/peer
-cp ../../peer server2/peer
+
+mkdir -p server
+cp ../../peer server/peer
 
 ../../hupsim.pl -m config/topo.map -n config/nodes.map -p 12345 -v 0 &
 SIM_PID=$!
 export SPIFFY_ROUTER=127.0.0.1:12345
 
-cd server1
+cd server
 ./peer -p ../config/nodes.map -c ../config/B.haschunks -m 4 -i 2 -f ../config/C.masterchunks &
-SERVER_PID1=$!
-cd ..
-
-cd server2
-./peer -p ../config/nodes.map -c ../config/C.haschunks -m 4 -i 3 -f ../config/C.masterchunks &
-SERVER_PID2=$!
+SERVER_PID=$!
 cd ..
 
 cd client
@@ -30,22 +22,18 @@ cd client
 CLIENT_PID=$!
 cd ..
 
-sleep 1
-kill -9 $SERVER_PID2
-
 wait $CLIENT_PID
 kill -9 $SIM_PID
 wait $SIM_PID
-killall peer
+kill -9 $SERVER_PID
 
-diff -s client/TEST.tar ../../config/B.tar
+diff -s client/TEST.tar ../../config/Big.tar
 
-grep ^1 server1/problem2-peer.txt > data.dat
+grep ^1 server/problem2-peer.txt > data.dat
 gnuplot config/plot.script
 
-rm data.dat
 rm client/TEST.tar
+rm data.dat
 rm client/problem2-peer.txt
 rm client/peer
-rm -rf server1
-rm -rf server2
+rm -rf server

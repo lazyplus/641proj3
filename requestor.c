@@ -204,10 +204,10 @@ int finish_chunk(bt_requestor_t * req, int chunk_id){
     if(strncmp(ascii, req->chunks[chunk_id].hash, SHA1_HASH_SIZE*2)){
         printf("Chunk %d is crap!\n", chunk_id);
         memset(req->chunks[chunk_id].recved, 0, sizeof(req->chunks[chunk_id].recved));
-        req->chunks[chunk_id].provider_cnt = 0;
         req->chunks[chunk_id].left = BT_CHUNK_SIZE / BT_PACKET_DATA_SIZE;
-        // req->chunks[i].cur_provider = -1;
+        req->chunks[chunk_id].cur_provider = -1;
         req->chunks[chunk_id].finished = 0;
+        request_next_chunk(req);
         return 0;
     }
 
