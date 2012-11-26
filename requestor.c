@@ -188,6 +188,9 @@ int finish_file(bt_requestor_t * req){
     free(req->chunks);
     req->in_progress = 0;
     printf("Finished!\n");
+    #ifdef TERM_FIN
+    exit(0);
+    #endif
     return 0;
 }
 
