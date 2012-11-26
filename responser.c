@@ -45,7 +45,7 @@ int init_responser(bt_responser_t * res, char * has_chunk_file, char * chunk_fil
 }
 
 int responser_connection_closed(bt_responser_t * res, int peer){
-    printf("Closing connection to %d\n", peer);
+    // printf("Closing connection to %d\n", peer);
     if(res->uploadingto[peer]){
         res->uploadingto[peer] = 0;
         -- res->uploading_cnt;
@@ -53,7 +53,7 @@ int responser_connection_closed(bt_responser_t * res, int peer){
         for(i=0; i<BT_MAX_UPLOAD; ++i){
             if(!senders[i].is_idle && senders[i].peer == peer){
                 senders[i].is_idle = 1;
-                printf("Closing sender %d\n", i);
+                // printf("Closing sender %d\n", i);
                 break;
             }
         }
@@ -105,7 +105,7 @@ int send_chunk(bt_responser_t * res, int peer, int chunk_id){
         return -1;
     }
 
-    printf("sender allocated %d\n", sender_id);
+    // printf("sender allocated %d\n", sender_id);
     senders[sender_id].peer = peer;
 
     res->uploadingto[peer] = 1;
@@ -138,7 +138,7 @@ int responser_packet(bt_responser_t * res, int peer, data_packet_t * packet){
         int i = 0, j;
         for(; i<packet->header.packet_len - packet->header.header_len; i+=SHA1_HASH_SIZE * 2){
             for(j=0; j<res->chunk_cnt; ++j){
-                printf("Comparing %s %s\n", packet->data + i, res->chunks[j].hash);
+                // printf("Comparing %s %s\n", packet->data + i, res->chunks[j].hash);
                 if(strncmp(packet->data + i, res->chunks[j].hash, SHA1_HASH_SIZE * 2) == 0){
                     send_ihave(res, peer, packet->data + i);
                 }

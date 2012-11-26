@@ -182,6 +182,8 @@ void peer_run() {
     //open window size change log
     window_size_log = fopen("problem2-peer.txt", "w+");
 
+    long last_time = my_get_time();
+
     while (1) {
         int nfds;
         FD_ZERO(&readfds);
@@ -191,6 +193,16 @@ void peer_run() {
         time_out.tv_usec = 0;
         
         nfds = select(sock+1, &readfds, NULL, NULL, &time_out);
+
+        long cur_time = my_get_time();
+        if(cur_time - last_time > TICKS_PER_MILISECOND * 1000){
+            last_time = cur_time;
+            requstor_timeout(&requestor);
+            for(i=0; i<BT_MAX_UPLOAD; ++i){
+                if(!senders[i].is_idle)
+                    ctl_udp_time_out(&senders[i]);
+            }
+        }
         
         if (nfds > 0) {
             if (FD_ISSET(sock, &readfds)) {
@@ -202,12 +214,6 @@ void peer_run() {
                 if(ret == -1){
                     stdin_closed = 1;
                 }
-            }
-        } else {
-            requstor_timeout(&requestor);
-            for(i=0; i<BT_MAX_UPLOAD; ++i){
-                if(!senders[i].is_idle)
-                    ctl_udp_time_out(&senders[i]);
             }
         }
     }

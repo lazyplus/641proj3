@@ -231,15 +231,11 @@ int ctl_udp_time_out(bt_sender_t *sender){
     }
     sender->last_tick = cur_time;
     int i;
-    printf("tick %d %d\n", sender->head, sender->tail);
     for(i=sender->head; i<sender->tail; ++i){
         if(sender->pkt_buf[i].sent_ts == -1)
             break;
-        // printf("%d %ld %ld\n", i, sender->pkt_buf[i].sent_ts, cur_time);
         if(cur_time - sender->pkt_buf[i].sent_ts > ACK_TIMEOUT){
-            printf("Time Out!\n");
             if( ++ sender->pkt_buf[i].resend > RESEND_THRES){
-                printf("Closed!\n");
                 connection_closed(sender->peer);
                 return 0;
             }else{

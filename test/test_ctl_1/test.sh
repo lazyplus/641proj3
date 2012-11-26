@@ -4,13 +4,14 @@ make
 
 cd ./test/test_ctl_1
 cp ../../peer client/peer
+
+mkdir -p server
 cp ../../peer server/peer
 
 ../../hupsim.pl -m config/topo.map -n config/nodes.map -p 12345 -v 0 &
 SIM_PID=$!
 export SPIFFY_ROUTER=127.0.0.1:12345
 
-mkdir -p server
 cd server
 ./peer -p ../config/nodes.map -c ../config/B.haschunks -m 4 -i 2 -f ../config/C.masterchunks &
 SERVER_PID=$!
@@ -34,6 +35,5 @@ gnuplot config/plot.script
 rm client/TEST.tar
 rm data.dat
 rm client/problem2-peer.txt
-rm server/problem2-peer.txt
 rm client/peer
-rm server/peer
+rm -rf server

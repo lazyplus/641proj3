@@ -88,7 +88,6 @@ int find_next_provider(bt_requestor_t * req, int chunk_id){
 int send_get(bt_requestor_t * req, int provider, int chunk_id){
     printf("sending GET %d to %d\n", chunk_id, provider);
     if(req->downloading[provider] != -1){
-        printf("!!!\n");
         return -1;
     }
     req->downloading[provider] = chunk_id;
@@ -115,9 +114,7 @@ int request_next_chunk(bt_requestor_t * req){
     for(i=0; i<req->chunk_cnt; ++i){
         // printf("Chunk %d %d %d\n", i, req->chunks[i].finished, req->chunks[i].cur_provider);
         if(req->chunks[i].finished == 0 && req->chunks[i].cur_provider == -1){
-            printf("Finding next provider for chunk %d\n", i);
             int new_provider = find_next_provider(req, i);
-            printf("Get new provider %d\n", new_provider);
             if(new_provider >= 0){
                 send_get(req, new_provider, i);
                 return 1;
@@ -153,7 +150,7 @@ int requstor_timeout(bt_requestor_t * req){
             }
         }
     }
-    // printf("!!!\n");
+
     int ret = request_next_chunk(req);
     while(ret == 1){
         ret = request_next_chunk(req);
@@ -187,7 +184,7 @@ int add_provider(bt_requestor_t * req, char * hash, int peer_id){
 int finish_file(bt_requestor_t * req){
     free(req->chunks);
     req->in_progress = 0;
-    printf("Finished!\n");
+    printf("Download Finished!\n");
     #ifdef TERM_FIN
     exit(0);
     #endif
@@ -195,7 +192,7 @@ int finish_file(bt_requestor_t * req){
 }
 
 int finish_chunk(bt_requestor_t * req, int chunk_id){
-    printf("Chunk %d Finished!\n", chunk_id);
+    // printf("Chunk %d Finished!\n", chunk_id);
     FILE * fout = fopen(req->outputfile, "r+b");
     if(chunk_id)
         fseek(fout, chunk_id * BT_CHUNK_SIZE, SEEK_SET);
@@ -230,24 +227,18 @@ int update_data(bt_requestor_t * req, int peer_id, data_packet_t * packet){
         req->chunks[chunk_id].recved[packet->header.seq_num] = 1;
         -- req->chunks[chunk_id].left;
     }
-    
-    // printf("sending ack\n");
+
     // cumulative ACK
-    // printf("cur chunk_id %d\n", chunk_id);
     int seq_num = req->chunks[chunk_id].cur_ack;
-    // printf("cur seq %d\n", seq_num);
     while(seq_num < BT_CHUNK_SIZE / BT_PACKET_DATA_SIZE && req->chunks[chunk_id].recved[seq_num] == 1){
-        // printf("cur seq %d\n", seq_num);
         ++ seq_num;
     }
     
     packet->header.seq_num = seq_num;
-    // printf("ack is %d\n", seq_num);
     send_ack(req, peer_id, packet);
     req->chunks[chunk_id].cur_ack = seq_num;
 
     if(req->chunks[chunk_id].left == 0){
-        printf("LAST ACK %d\n", seq_num);
         finish_chunk(req, chunk_id);
     }
     return 0;
