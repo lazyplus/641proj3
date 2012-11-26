@@ -1,6 +1,6 @@
 cd ../../
 make clean
-make
+CFLAG=-DTERM_FIN make
 
 cd ./test/test_p2p_2
 cp ../../peer client1/peer

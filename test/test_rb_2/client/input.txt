@@ -1,0 +1,2 @@
+GET ../config/B.chunks TEST.tar
+
