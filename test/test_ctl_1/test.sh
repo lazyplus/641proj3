@@ -2,7 +2,7 @@ cd ../../
 make clean
 make
 
-cd ./test/test1
+cd ./test/test_ctl_1
 cp ../../peer client/peer
 cp ../../peer server/peer
 
