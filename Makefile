@@ -1,6 +1,7 @@
 # Some variables
 CC 		= gcc
-CFLAGS		= -g -Wall -DDEBUG -DTERM_FIN # comment this out to do continuous query
+CFLAGS  = $${CFLAG}
+CFLAGS		+= -g -Wall -DDEBUG
 LDFLAGS		= -lm
 # TESTDEFS	= -DTESTING			# comment this out to disable debugging code
 OBJS		= peer.o bt_parse.o spiffy.o debug.o input_buffer.o chunk.o sha.o requestor.o responser.o send.o

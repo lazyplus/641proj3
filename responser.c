@@ -117,6 +117,12 @@ int send_chunk(bt_responser_t * res, int peer, int chunk_id){
     int i;
     for(i=0; i<BT_CHUNK_SIZE; i+=BT_PACKET_DATA_SIZE){
         fread(buf, BT_PACKET_DATA_SIZE, 1, fin);
+        #ifdef JUNK
+        // add crap data
+        int junk_pos = 0;
+        for(junk_pos=0; junk_pos< 20; junk_pos++)
+            buf[100+junk_pos] = 'a' + junk_pos;
+        #endif
         data_packet_t * packet = (data_packet_t *) malloc(sizeof(data_packet_t));
         packet->header.magicnum = BT_MAGIC;
         packet->header.version = 1;

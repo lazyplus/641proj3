@@ -88,7 +88,6 @@ void process_inbound_udp(int sock) {
 
     bt_peer_t *p;
     for (p = config.peers; p != NULL; p = p->next) {
-        char * host1, * host2;
         if (!memcmp(&p->addr.sin_addr, &from.sin_addr, sizeof(struct in_addr))
              && p->addr.sin_port == from.sin_port) {
             break;

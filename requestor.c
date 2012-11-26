@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "sha.h"
+#include "chunk.h"
 #include "requestor.h"
 #include "bt_parse.h"
 
@@ -190,14 +192,32 @@ int finish_file(bt_requestor_t * req){
 }
 
 int finish_chunk(bt_requestor_t * req, int chunk_id){
+    uint8_t hash[SHA1_HASH_SIZE];
+    char ascii[SHA1_HASH_SIZE*2+1];
+
+    shahash(req->chunks[chunk_id].data_buf, BT_CHUNK_SIZE, hash);
+    binary2hex(hash, SHA1_HASH_SIZE, ascii);
+
+    int provider = req->chunks[chunk_id].cur_provider;
+    req->downloading[provider] = -1;
+
+    if(strncmp(ascii, req->chunks[chunk_id].hash, SHA1_HASH_SIZE*2)){
+        printf("Chunk %d is crap!\n", chunk_id);
+        memset(req->chunks[chunk_id].recved, 0, sizeof(req->chunks[chunk_id].recved));
+        req->chunks[chunk_id].provider_cnt = 0;
+        req->chunks[chunk_id].left = BT_CHUNK_SIZE / BT_PACKET_DATA_SIZE;
+        // req->chunks[i].cur_provider = -1;
+        req->chunks[chunk_id].finished = 0;
+        return 0;
+    }
+
     printf("Chunk %d Finished!\n", chunk_id);
     FILE * fout = fopen(req->outputfile, "r+b");
     if(chunk_id)
         fseek(fout, chunk_id * BT_CHUNK_SIZE, SEEK_SET);
     fwrite(req->chunks[chunk_id].data_buf, BT_CHUNK_SIZE, 1, fout);
     fclose(fout);
-    int provider = req->chunks[chunk_id].cur_provider;
-    req->downloading[provider] = -1;
+    
     req->chunks[chunk_id].finished = 1;
     req->chunks[chunk_id].cur_provider = -1;
     req->chunks[chunk_id].last_packet = 0;
