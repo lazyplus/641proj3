@@ -1,4 +1,4 @@
 #Format:
-#ideal
+# low bw
 # src dst bw delay queue-size
-1 2 8000000 0.001 200
+1 2 8000 0.001 200
