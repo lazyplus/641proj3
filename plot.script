@@ -1,2 +1,0 @@
-plot "1.dat" using 2:3 title "flow 1" with lines
-
