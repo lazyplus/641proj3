@@ -1,0 +1,42 @@
+We have following tests:
+
+Tests for congestion control
+    test/test_ctl_[1-8] contain tests for congestion control.
+    We simulate 8 different network environment via the hupsim.pl program. We test networks with different Latency, Bandwidth and QueueSize. Following is the description of these 8 tests:
+
+    Test#    Latency Bandwidth QueueSize
+      1        Low     High      Large
+      2        High    High      Large
+      3        Low     Low       Large
+      4        High    Low       Small
+      5        High    Low       Large
+      6        High    High      Small
+      7        Low     Low       Small
+      8        High    Low       Small
+
+    All these 8 tests consists of two peers, one worked as server and the other downloads file from the server. We focus on the congestion control on data packets, the test.sh script inside every folder would setup the network simulator and peers, run test and plot the changing window size.
+
+
+Tests for P2P functionality
+    test/test_p2p_[1-4] contain tests for P2P functionality.
+    As we had tested congestion control, we are expecting the data channel between two peers would work fine. So, these tests focus on correct P2P functionality. Following is the description of these 4 tests:
+
+    test_p2p_1:
+        One client peer simultaneously downloads from two server peers.
+    test_p2p_2:
+        One server peer simultaneously uploads to two client peers.
+    test_p2p_3:
+        Tow client peers simultaneously download two chunks from two server peers.
+    test_p2p_4:
+        One client peer downloads a big file containing same chunk from a server peer.
+
+
+Tests for robustness
+    test/test_rb_[1-2] contain tests for robustness.
+
+    test_rb_1:
+        One client peer downloads two chunks from two server peer. Before the transfer finished, kill one server peer and expecting the client peer notice the crash and request the chunk from another server peer.
+    test_rb_2:
+        One client peer downloads two chunks from two server peer. One of the two server peers sends crapped data. Expect the client peer detect this and request the chunk from another server peer.
+    test_rb_3:
+        Limit the max-downloads on server peer to 1, then start a client peer to download from this server peer. Before this client peer finished, kill it and start another client peer to download from the server peer. Expecting server peer notice the first client peer crashed and then serve the other waiting client.

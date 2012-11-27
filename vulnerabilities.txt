@@ -1,0 +1,6 @@
+Known vulnerabilities:
+
+1. Incorrect configuration. Incorrect configuration such as negative numbers might cause problems when we allocate resources.
+2. Malicious peer. Peers constantly sending the same data packet would prevent our client peer from making progress. Peers constantly sending the same ACK packet would act like DoS attack on server peer.
+3. Very bad network where RTT is varying too much (e.g 1ms to 200ms) would prevent our RTT estimation algorithm working as expected.
+4. No detection for invalid files. If any chunk is not owned by any peer, the client peer will constantly asking other peers without noticing user that there is no peer providing the file.
