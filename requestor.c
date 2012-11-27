@@ -8,6 +8,7 @@
 
 extern bt_config_t config;
 
+// flood who has message
 int send_whohas(bt_requestor_t * req, int chunk_id){
     printf("Sending Whohas %d\n", chunk_id);
     data_packet_t packet;
@@ -67,6 +68,7 @@ int init_requestor(bt_requestor_t * req, char * chunkfile, char * outputfile){
     return 0;
 }
 
+// chose the next provider for this chunk in a round-robin fashion
 int find_next_provider(bt_requestor_t * req, int chunk_id){
     int i = req->chunks[chunk_id].last_provider;
     int j;
@@ -112,6 +114,7 @@ int send_get(bt_requestor_t * req, int provider, int chunk_id){
     return 0;
 }
 
+// find next chunk to download
 int request_next_chunk(bt_requestor_t * req){
     int i;
     for(i=0; i<req->chunk_cnt; ++i){
@@ -162,6 +165,7 @@ int requstor_timeout(bt_requestor_t * req){
     return 0;
 }
 
+// find a new provider for a chunk
 int add_provider(bt_requestor_t * req, char * hash, int peer_id){
     int i, j;
     for(i=0; i<req->chunk_cnt; ++i){
@@ -186,11 +190,12 @@ int finish_file(bt_requestor_t * req){
     req->in_progress = 0;
     printf("Download Finished!\n");
     #ifdef TERM_FIN
-    exit(0);
+        exit(0);
     #endif
     return 0;
 }
 
+// a chunk is finished, write to disk
 int finish_chunk(bt_requestor_t * req, int chunk_id){
     uint8_t hash[SHA1_HASH_SIZE];
     char ascii[SHA1_HASH_SIZE*2+1];
@@ -230,6 +235,7 @@ int finish_chunk(bt_requestor_t * req, int chunk_id){
     return 0;
 }
 
+// received a data packet
 int update_data(bt_requestor_t * req, int peer_id, data_packet_t * packet){
     int chunk_id = req->downloading[peer_id];
     if(chunk_id == -1)

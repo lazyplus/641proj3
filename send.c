@@ -20,6 +20,7 @@ void init_sender(bt_sender_t *sender, int id){
     sender->last_tick = 0;
 }
 
+// a packet get lost, update window size
 int wd_lost(bt_sender_t * sender){
     int old_size = sender->window_size;
     long cur_time = my_get_time();
@@ -58,6 +59,7 @@ int wd_lost(bt_sender_t * sender){
     return 0;
 }
 
+// get ACK, update windows size
 int wd_ack(bt_sender_t * sender){
     long cur_clock = my_get_time();
     long time_interval;
@@ -74,13 +76,12 @@ int wd_ack(bt_sender_t * sender){
         }
         if (sender->window_size > sender->window_ssthresh){
             sender->window_state = CONG_CTL;
-                // printf("Sender %d : %d window SLOW_START --> CONG_CTL\n", sender->peer, sender->id);
+            // printf("Sender %d : %d window SLOW_START --> CONG_CTL\n", sender->peer, sender->id);
         }
         sender->last_window_update_clock = cur_clock;
         break;
     case CONG_CTL:
         time_interval = (cur_clock - sender->last_window_update_clock);
-        // printf("Time interval %ld %ld\n", sender->rtt, time_interval);
         if(time_interval >= sender->rtt){
             // window size ++
             sender->window_size++;
@@ -101,6 +102,7 @@ int wd_ack(bt_sender_t * sender){
     return 0;
 }
 
+// send packet and make a time stamp
 int ctl_send(bt_sender_t * sender, int pos){
     sender->pkt_buf[pos].ack = 0;
     if(pos - sender->head < sender->window_size){
@@ -133,18 +135,22 @@ int ctl_udp_send(bt_sender_t *sender, int peer, data_packet_t *new_packet){
 int update_rtt(bt_sender_t * sender, long sent_ts){
     long cur_time = my_get_time();
     long new_rtt = cur_time - sent_ts;
+
+    // ignore delayed ACK
     if(new_rtt * 5 < sender->rtt)
         return 0;
+
+    // ignore jitter
     if(sender->rtt && new_rtt / 5 > sender->rtt)
         return 0;
+
     if(sender->rtt == 0){
-        // printf("First Time %ld\n", new_rtt);
+        // the first time from been initialized
         sender->rtt = new_rtt;
     }
     else{
         sender->rtt = (BT_RTT_ALPHA * sender->rtt + (10 - BT_RTT_ALPHA) * new_rtt) / 10;
     }
-    // printf("rtt %ld %ld\n", new_rtt, sender->rtt);
     return 0;
 }
 
@@ -174,7 +180,6 @@ int ctl_udp_ack(bt_sender_t *sender, int peer, data_packet_t *new_packet){
                 sender->last_ack_cnt = 0;
                 // Not the ACK of last packet
                 if(sender->last_ack_num < sender->head + sender->window_size){
-                    // printf("Dup! %d %ld %d\n", sender->last_ack_num, sender->rtt, sender->pkt_buf[sender->last_ack_num].sent_ts);
                     wd_lost(sender);
                     ctl_send(sender, sender->last_ack_num);
                 }

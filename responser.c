@@ -75,6 +75,7 @@ int send_ihave(bt_responser_t * res, int peer, char * hash){
     return 0;
 }
 
+// find an idle sender to use
 int find_sender(){
     int i=0;
     for(; i<BT_MAX_UPLOAD; ++i){
@@ -86,6 +87,7 @@ int find_sender(){
     return -1;
 }
 
+// fill all data packets to sender and wait for it to complete and signal responser by calling responser_connection_closed.
 int send_chunk(bt_responser_t * res, int peer, int chunk_id){
     printf("Sending Chunk %d to %d\n", chunk_id, peer);
 
@@ -105,7 +107,6 @@ int send_chunk(bt_responser_t * res, int peer, int chunk_id){
         return -1;
     }
 
-    // printf("sender allocated %d\n", sender_id);
     senders[sender_id].peer = peer;
 
     res->uploadingto[peer] = 1;
@@ -118,10 +119,10 @@ int send_chunk(bt_responser_t * res, int peer, int chunk_id){
     for(i=0; i<BT_CHUNK_SIZE; i+=BT_PACKET_DATA_SIZE){
         fread(buf, BT_PACKET_DATA_SIZE, 1, fin);
         #ifdef JUNK
-        // add crap data
-        int junk_pos = 0;
-        for(junk_pos=0; junk_pos< 20; junk_pos++)
-            buf[100+junk_pos] = 'a' + junk_pos;
+            // add crap data
+            int junk_pos = 0;
+            for(junk_pos=0; junk_pos< 20; junk_pos++)
+                buf[100+junk_pos] = 'a' + junk_pos;
         #endif
         data_packet_t * packet = (data_packet_t *) malloc(sizeof(data_packet_t));
         packet->header.magicnum = BT_MAGIC;
@@ -144,7 +145,6 @@ int responser_packet(bt_responser_t * res, int peer, data_packet_t * packet){
         int i = 0, j;
         for(; i<packet->header.packet_len - packet->header.header_len; i+=SHA1_HASH_SIZE * 2){
             for(j=0; j<res->chunk_cnt; ++j){
-                // printf("Comparing %s %s\n", packet->data + i, res->chunks[j].hash);
                 if(strncmp(packet->data + i, res->chunks[j].hash, SHA1_HASH_SIZE * 2) == 0){
                     send_ihave(res, peer, packet->data + i);
                 }
