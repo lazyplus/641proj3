@@ -1,4 +1,4 @@
 #Format:
 # high delay + short queue
 # src dst bw delay queue-size
-1 2 8000000 0.20 2
+1 2 8000000 0.20 40

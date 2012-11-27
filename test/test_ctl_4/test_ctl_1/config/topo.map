@@ -1,3 +1,0 @@
-#Format:
-# src dst bw delay queue-size
-1 2 8000000 0.10 20
