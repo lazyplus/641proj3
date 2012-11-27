@@ -30,7 +30,7 @@ cd client
 CLIENT_PID=$!
 cd ..
 
-sleep 1
+sleep 5
 kill -9 $SERVER_PID2
 
 wait $CLIENT_PID
